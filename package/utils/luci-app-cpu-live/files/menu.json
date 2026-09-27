@@ -1,0 +1,13 @@
+{
+	"admin/status/cpu-live": {
+		"title": "CPU Load",
+		"order": 8,
+		"action": {
+			"type": "view",
+			"path": "cpu-live/index"
+		},
+		"depends": {
+			"acl": [ "luci-app-cpu-live" ]
+		}
+	}
+}
