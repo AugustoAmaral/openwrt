@@ -61,6 +61,13 @@ PR: https://github.com/kuncy7/openwrt-nss-edma/pull/14
 
 If kuncy7 takes an equivalent fix upstream, prefer his version and drop this one on the next merge.
 
+One more local commit, unrelated to that bug:
+
+- `34e44f5b1a` — `luci-app-cpu-live: add a live CPU and NSS core load page` (`package/utils/luci-app-cpu-live/`).
+  Status → CPU Load draws per-core CPU usage and the NSS core load in the browser every 2 s, only while the page
+  is open. It lives in its own directory, so merges from kuncy7 do not touch it. Pairs with kuncy7's
+  `luci-app-nss` (NSS box on the Status overview), which is enabled in the production seed alongside it.
+
 ## Keeping the changes when updating from kuncy7
 
 1. `git fetch kuncy7 && git merge kuncy7/c3po-tag-8021q`.
