@@ -51,6 +51,28 @@ Named tests referenced repeatedly below (all router-side, generic across any boa
 | 5·T2 | T2, on the flashed production image | flash, production (build tagged `r0+36757-1b39b3b3b6`) | ✅ resumed, cable both directions, peer's DHCP lease renewed; 724.8 Mbit/s |
 | 5·revert | Remove the test bridge setting and reload again (config back to the original, 0 pending changes) | flash, production | ✅ same result; 727.4 Mbit/s (a transient 70%-busy CPU snapshot taken right after the load, then 98–99% idle over 3 follow-up 5 s samples) |
 
+## Regression run on this branch (`87cfd3190e` + the two commits), 2026-09-27
+
+Image `r36760-f2c7091b27`, built from this branch. The fix code is identical to the one tested above (only
+`PKG_RELEASE` differs); what changed underneath is kuncy7's newer base (nss-tools, a netifd patch, CI) and five
+extra kernel modules built into the image (`tun`, `wireguard`, `sch_cake`, `ifb`, `nf_conntrack_netlink`, all
+loaded at boot).
+
+| Test | Where it ran | Result |
+|---|---|---|
+| Boot | RAM, factory config | ✅ both GMACs on the firmware data plane, firmware rings recorded; cable both directions |
+| T1 | RAM | ✅ `eth0` not released; PPPoE up with IPv6, both Wi-Fi networks up |
+| T2 | RAM | ✅ released → waited for link → resumed; cable both directions; 729.4 Mbit/s (firmware PPPoE RX counter +2.1 million; 87% idle / ~10% softirq averaged over the run) |
+| T3 | RAM | ✅ cable alive after the apply, confirmed over the cable itself |
+| T4 | RAM | ✅ WAN port resumed (`phys_if 1`), PPPoE came back |
+| T5 | RAM | ✅ MTU 1508 and back to 1500, one resume for each change |
+| Stress 5×1 s | RAM | ✅ 1 release + 4 waits + 1 resume; `noresume=0`, `notstarted=0` |
+| Stress 5×3 s | RAM | ✅ 5 releases, 5 resumes; `noresume=0`, `notstarted=0` |
+| End of RAM session | RAM, 16 min, 11 resumes | ✅ 721.9 Mbit/s; 0 `WARNING`/`Oops`/`BUG`/lockup lines in dmesg; 3 Wi-Fi clients on 2.4 GHz and 1 on 5 GHz unaffected |
+| Flash | `sysupgrade -v`, config kept | ✅ same SSH host key and configuration; both GMACs armed; 0 severe dmesg lines; no error on the serial log |
+| T2 | flash | ✅ resumed; cable both directions; 718.9 Mbit/s |
+| Revert | flash (bridge option removed again, 0 pending changes) | ✅ resumed; 728.9 Mbit/s |
+
 ## Long-running / production checks
 
 **Long RAM test with production config, 2026-09-26 18:30–19:13 UTC** (this is the run
@@ -85,22 +107,18 @@ worked natively for `lan1`-`lan3`/`wan` (speed and TX/RX counters), with no loca
 - **The 5 GHz → 2.4 GHz roaming bug**: a client that roams onto the 5 GHz radio sometimes fails to move back to
   2.4 GHz (the peer gets stuck in the 5 GHz radio's firmware). This is an open bug in kuncy7's tree, unrelated to
   the trunk-bounce fix; a documented workaround is `wifi down radio1; wifi up radio1`.
-- **Long-term stability of the trunk-bounce fix in flash.** It has only been confirmed for the short window
-  immediately after flashing (post-flash checks + two T2 runs); no multi-day soak test has been run against the
-  flashed build.
+- **Long-term stability in flash.** The first image with the fix was in flash for about 5 hours; this branch's image
+  since 2026-09-27 02:48 UTC. Only the checks listed above were run; no multi-day soak test yet.
 - **The cable being unplugged and replugged while the firmware owns the port.** That path only touches
   `link_state`, not the DMA, so it is expected to be unaffected by both the original bug and the fix — but this
   has not been measured either way.
 - **Updating this fork from kuncy7's tree.** The merge/rebase procedure in the top-level README has never been
   exercised end-to-end; the only rebase performed so far was preparing the two commits for the upstream PR.
-- **SQM of any kind.** The image used for every test above has no `tc`/`sch_*`/`ifb` modules built in, and no
-  NSS-accelerated SQM has been tried on `ipq50xx`.
+- **SQM of any kind.** Since 2026-09-27 the image carries `sch_cake` and `ifb`, but no SQM has been configured or
+  measured, and no NSS-accelerated SQM has been tried on `ipq50xx`.
 - **Other boards.** Every test above ran on a single Xiaomi AX6000. The glue's port-to-netdev mapping supports
   boards with different GMAC numbering, but the trunk-bounce fix itself has not been tried on any board besides
   this one.
-- **The current branch head, `87cfd3190e` plus the two fix commits.** Every number in this document comes from a
-  build against kuncy7 `8c34ac51` plus pre-rebase versions of the same two commits. The rebase onto `87cfd3190e`
-  applies cleanly, but that exact tree has not been built or booted.
 - **The glue's fallback path when `fw_rings_known` is never set** — i.e. the firmware's very first open after boot
   failing. This falls back to the pre-fix behavior (with a dmesg warning) and was not deliberately exercised.
 - **MTU above the TX FIFO size** (jumbo frames) — a known limit (see `trunk-bounce-fix.md`), not tested end to end.

@@ -9,8 +9,8 @@ otherwise leaves the wired ports dead after a network reload, plus these notes. 
 - **Base:** OpenWrt `main` (kernel 6.18) plus the IPQ5018 NSS layer from kuncy7's `openwrt-nss-edma`, branch
   `c3po-tag-8021q`. This branch tracks that tree at commit `87cfd3190e`.
 - **Feed:** `nss-packages` (kuncy7), branch `ipq50xx-rebase`, the companion feed for `c3po-tag-8021q`. Pin it to a
-  commit before a release build (`feeds.conf.default`, `nss` line) — the last one recorded here is `833aa0e9`
-  (2026-09-26, against the `8c34ac51` base; re-check the pin when building against `87cfd3190e`).
+  commit before a release build (`feeds.conf.default`, `nss` line). The current production image uses `833aa0e9`,
+  which was still the branch head on 2026-09-27.
 - **Topology:** `dsa`. The QCA8337 switch keeps its normal `qca8k` DSA driver, so `lan1`–`lan3` are real DSA
   ports and LuCI's port-status page works unmodified; `wan` is the 2.5G PHY on the second GMAC, outside the switch.
   The `qca-8021q` tagger and a small glue module (`qca-dwmac-nss`) give the NSS firmware one interface per bridge
@@ -33,16 +33,16 @@ matching kernel module) install from the official OpenWrt repository normally.
 
 | Area | Status | Measured |
 |---|---|---|
-| Cable → PPPoE, accelerated | ✅ | 711–728 Mbit/s over 11 runs (RAM and flash); see `docs/testing.md` |
+| Cable → PPPoE, accelerated | ✅ | 711–729 Mbit/s over 15 runs (RAM and flash, two builds); see `docs/testing.md` |
 | Wi-Fi, 2.4 GHz, NSS offload | ✅ | offload confirmed active (firmware `if_num` present, frames counted in `wifili`); throughput not isolated per band |
 | Wi-Fi, 5 GHz, NSS offload | ✅ | offload confirmed active; one informal phone measurement: 578 Mbit/s down / 449 Mbit/s up |
-| Trunk-bounce fix (this branch's local change) | ✅ in flash since 2026-09-26 22:01 UTC | see `docs/trunk-bounce-fix.md` and `docs/testing.md` |
-| Everything else | — | see `docs/testing.md` § Not tested for the full list (IPv6 offload, long-term stability, cable unplug/replug under firmware control, updating this fork, SQM, other boards, the current `87cfd3190e`-based tree, …) |
+| Trunk-bounce fix (this branch's local change) | ✅ in flash since 2026-09-26 22:01 UTC; this branch's own image since 2026-09-27 02:48 UTC | see `docs/trunk-bounce-fix.md` and `docs/testing.md` |
+| Everything else | — | see `docs/testing.md` § Not tested for the full list (IPv6 offload, long-term stability, cable unplug/replug under firmware control, updating this fork, SQM, other boards, …) |
 
-All the numbers above come from a build made against kuncy7 `8c34ac51` plus the same two commits listed below
-(pre-rebase versions of them, not published). The two commits as published in this branch were rebased onto
-`87cfd3190e`; the rebase applies cleanly (the five commits in between touch `nss-tools`, one netifd patch, and CI
-only), but that exact tree has **not** been built or tested yet.
+The production image is built from this branch (`r36760-f2c7091b27`, 2026-09-27). It passed the whole regression
+set from RAM (T1–T5 and both stress runs) and T2 again after flashing; see `docs/testing.md` § "Regression run on
+this branch". The older numbers come from a build against kuncy7 `8c34ac51` plus pre-rebase versions of the same
+two commits.
 
 ## Local changes on top of kuncy7
 
