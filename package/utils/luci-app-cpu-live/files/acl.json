@@ -1,0 +1,11 @@
+{
+	"luci-app-cpu-live": {
+		"description": "Grant read access to the CPU and NSS core load counters",
+		"read": {
+			"file": {
+				"/proc/stat": [ "read" ],
+				"/sys/kernel/debug/qca-nss-drv/stats/cpu_load_ubi": [ "read" ]
+			}
+		}
+	}
+}
