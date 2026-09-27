@@ -57,7 +57,7 @@ reboot; a WAN bounce or an MTU change hit the same path. Full write-up in `docs/
 
 These two commits are also submitted as a pull request to kuncy7/openwrt-nss-edma (branch `c3po-tag-8021q`):
 
-PR: <PR_URL>
+PR: https://github.com/kuncy7/openwrt-nss-edma/pull/14
 
 If kuncy7 takes an equivalent fix upstream, prefer his version and drop this one on the next merge.
 
