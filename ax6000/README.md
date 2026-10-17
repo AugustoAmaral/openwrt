@@ -50,8 +50,9 @@ All measurements so far come from the previous branch (`ax6000`, image `r36760-f
 **NAND ECC:** this unit has the ESMT F50D1G41LB SPI-NAND (64-byte OOB), which the vendor bootloader runs with 4-bit
 ECC. Since 2026-09-27 (`88d3c30f18`, openwrt#24959) OpenWrt `main` forces 8-bit ECC in the AX6000 device tree, which
 suits the GigaDevice variant (128-byte OOB) but not this one. kuncy7's tree removes the forced value and picks the
-strength from the OOB size (`cf933e6b8f`). Do not flash this unit with a plain OpenWrt `main` image built after
-2026-09-27; check for `ECC strength ... trying 4-bits` (or 4-bit ECC) in the boot log of any new image.
+strength from the OOB size (`cf933e6b8f`, patch `0422`; it logs nothing about it). Do not flash this unit with a plain
+OpenWrt `main` image built after 2026-09-27. On any new image, check `cat /sys/class/mtd/mtd0/ecc_strength` = 4 and
+no new ECC/UBI read errors in dmesg before flashing.
 
 ## Local changes on top of kuncy7
 
