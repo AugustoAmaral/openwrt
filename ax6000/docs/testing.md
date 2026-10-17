@@ -112,8 +112,9 @@ worked natively for `lan1`-`lan3`/`wan` (speed and TX/RX counters), with no loca
 - **The cable being unplugged and replugged while the firmware owns the port.** That path only touches
   `link_state`, not the DMA, so it is expected to be unaffected by both the original bug and the fix — but this
   has not been measured either way.
-- **Updating this fork from kuncy7's tree.** The merge/rebase procedure in the top-level README has never been
-  exercised end-to-end; the only rebase performed so far was preparing the two commits for the upstream PR.
+- **Updating this fork from kuncy7's tree.** The first update (2026-10-17, branch `ax6000-2026-10`) had to start
+  over from kuncy7's rewritten branch and cherry-pick the local commits; a plain merge from his tree has still never
+  been exercised. Nothing on the new branch has been tested on hardware yet.
 - **SQM of any kind.** Since 2026-09-27 the image carries `sch_cake` and `ifb`, but no SQM has been configured or
   measured, and no NSS-accelerated SQM has been tried on `ipq50xx`.
 - **Other boards.** Every test above ran on a single Xiaomi AX6000. The glue's port-to-netdev mapping supports

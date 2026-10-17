@@ -1,16 +1,20 @@
-# Xiaomi AX6000 (IPQ5018) — branch `ax6000`
+# Xiaomi AX6000 (IPQ5018) — branch `ax6000-2026-10`
 
-This branch builds OpenWrt for one board only: the Xiaomi AX6000. It adds nothing else on top of
-[kuncy7/openwrt-nss-edma](https://github.com/kuncy7/openwrt-nss-edma) except a fix for a trunk-bounce bug that
-otherwise leaves the wired ports dead after a network reload, plus these notes. Maintained by Augusto Amaral.
+This branch builds OpenWrt for one board only: the Xiaomi AX6000. It is
+[kuncy7/openwrt-nss-edma](https://github.com/kuncy7/openwrt-nss-edma) plus these notes and one LuCI page of my own.
+Maintained by Augusto Amaral.
 
 ## What this branch is
 
 - **Base:** OpenWrt `main` (kernel 6.18) plus the IPQ5018 NSS layer from kuncy7's `openwrt-nss-edma`, branch
-  `c3po-tag-8021q`. This branch tracks that tree at commit `87cfd3190e`.
+  `c3po-tag-8021q`. This branch (`ax6000-2026-10`) tracks that tree at commit `41998763c9` (2026-10-17; OpenWrt
+  `main` merged up to `5df6ceb3d4`, 2026-10-16; kernel 6.18.55).
 - **Feed:** `nss-packages` (kuncy7), branch `ipq50xx-rebase`, the companion feed for `c3po-tag-8021q`. Pin it to a
-  commit before a release build (`feeds.conf.default`, `nss` line). The current production image uses `833aa0e9`,
-  which was still the branch head on 2026-09-27.
+  commit before a release build. This branch's images use `e525310` (branch head on 2026-10-17) and NSS firmware
+  12.5-210, the version kuncy7's release images carry since 2026-10-15.
+- **Previous branch:** `ax6000` (kuncy7 `87cfd3190e`, kernel 6.18.52, firmware 12.2) is kept as an archive. kuncy7
+  rewrote `c3po-tag-8021q` on 2026-10-10 (his backup: `c3po-tag-8021q-pre-sync-20261010`), so the old branch cannot
+  be merged forward; this one was started fresh from his tree and the local commits were cherry-picked onto it.
 - **Topology:** `dsa`. The QCA8337 switch keeps its normal `qca8k` DSA driver, so `lan1`–`lan3` are real DSA
   ports and LuCI's port-status page works unmodified; `wan` is the 2.5G PHY on the second GMAC, outside the switch.
   The `qca-8021q` tagger and a small glue module (`qca-dwmac-nss`) give the NSS firmware one interface per bridge
@@ -33,58 +37,45 @@ matching kernel module) install from the official OpenWrt repository normally.
 
 | Area | Status | Measured |
 |---|---|---|
-| Cable → PPPoE, accelerated | ✅ | 711–729 Mbit/s over 15 runs (RAM and flash, two builds); see `docs/testing.md` |
-| Wi-Fi, 2.4 GHz, NSS offload | ✅ | offload confirmed active (firmware `if_num` present, frames counted in `wifili`); throughput not isolated per band |
-| Wi-Fi, 5 GHz, NSS offload | ✅ | offload confirmed active; one informal phone measurement: 578 Mbit/s down / 449 Mbit/s up |
-| Trunk-bounce fix (this branch's local change) | ✅ in flash since 2026-09-26 22:01 UTC; this branch's own image since 2026-09-27 02:48 UTC | see `docs/trunk-bounce-fix.md` and `docs/testing.md` |
-| Everything else | — | see `docs/testing.md` § Not tested for the full list (IPv6 offload, long-term stability, cable unplug/replug under firmware control, updating this fork, SQM, other boards, …) |
+| Cable → PPPoE, accelerated | ✅ on the previous branch | 711–729 Mbit/s over 15 runs (RAM and flash, two builds); see `docs/testing.md` |
+| Wi-Fi, 2.4 GHz, NSS offload | ✅ on the previous branch | offload confirmed active (firmware `if_num` present, frames counted in `wifili`); throughput not isolated per band |
+| Wi-Fi, 5 GHz, NSS offload | ✅ on the previous branch | offload confirmed active; one informal phone measurement: 578 Mbit/s down / 449 Mbit/s up |
+| Trunk-bounce fix | ✅ upstream in kuncy7's tree since 2026-09-27 (PR #14) | see `docs/trunk-bounce-fix.md` and `docs/testing.md` |
+| This branch (`ax6000-2026-10`) | ⏳ built, not yet booted | everything above has to be repeated on it before it goes to flash |
+| Everything else | — | see `docs/testing.md` § Not tested for the full list (IPv6 offload, long-term stability, cable unplug/replug under firmware control, SQM, other boards, …) |
 
-The production image is built from this branch (`r36760-f2c7091b27`, 2026-09-27). It passed the whole regression
-set from RAM (T1–T5 and both stress runs) and T2 again after flashing; see `docs/testing.md` § "Regression run on
-this branch". The older numbers come from a build against kuncy7 `8c34ac51` plus pre-rebase versions of the same
-two commits.
+All measurements so far come from the previous branch (`ax6000`, image `r36760-f2c7091b27`, in flash since
+2026-09-27 02:48 UTC).
+
+**NAND ECC:** this unit has the ESMT F50D1G41LB SPI-NAND (64-byte OOB), which the vendor bootloader runs with 4-bit
+ECC. Since 2026-09-27 (`88d3c30f18`, openwrt#24959) OpenWrt `main` forces 8-bit ECC in the AX6000 device tree, which
+suits the GigaDevice variant (128-byte OOB) but not this one. kuncy7's tree removes the forced value and picks the
+strength from the OOB size (`cf933e6b8f`). Do not flash this unit with a plain OpenWrt `main` image built after
+2026-09-27; check for `ECC strength ... trying 4-bits` (or 4-bit ECC) in the boot log of any new image.
 
 ## Local changes on top of kuncy7
 
-Two commits, both about the same bug: netifd rebuilding `br-lan` on a config reload (LuCI "Save & Apply" of a
-bridge option, `/etc/init.d/network reload`) bounces the DSA conduit, and wired traffic used to stay dead until
-reboot; a WAN bounce or an MTU change hit the same path. Full write-up in `docs/trunk-bounce-fix.md`.
+- `ax6000/` — these notes, the trunk-bounce write-up, the test record and the bench tools.
+- `package/utils/luci-app-cpu-live/` — Status → CPU Load draws per-core CPU usage and the NSS core load in the
+  browser every 2 s, only while the page is open (reads `/sys/kernel/debug/qca-nss-drv/stats/cpu_load_ubi`). It
+  lives in its own directory, so updates from kuncy7 do not touch it. Pairs with kuncy7's `luci-app-nss` (NSS box
+  on the Status overview), which is enabled in the production seed alongside it.
 
-- `6ba3118334` — `qualcommax: stmmac: let the NSS owner resume the firmware descriptor rings` (kernel patch
-  `target/linux/qualcommax/patches-6.18/0958-net-stmmac-let-the-NSS-owner-restore-the-firmware-descriptor-rings.patch`
-  + `target/linux/qualcommax/files/include/linux/soc/qcom/qca_dwmac.h`).
-- `6dac1ad69c` — `qca-dwmac-nss: survive a trunk bounce after boot` (`package/kernel/qca-dwmac-nss/src/qca_dwmac_nss.c`).
+The trunk-bounce fix (kernel patch `0958` + the glue changes in `qca-dwmac-nss`) used to be two local commits. kuncy7
+merged them from [PR #14](https://github.com/kuncy7/openwrt-nss-edma/pull/14) on 2026-09-27 and carries them as
+`00756268e0` and `2a6b213365`; his tree has kept evolving that glue since. They are no longer local.
 
-These two commits are also submitted as a pull request to kuncy7/openwrt-nss-edma (branch `c3po-tag-8021q`):
+## Updating from kuncy7
 
-PR: https://github.com/kuncy7/openwrt-nss-edma/pull/14
-
-If kuncy7 takes an equivalent fix upstream, prefer his version and drop this one on the next merge.
-
-One more local commit, unrelated to that bug:
-
-- `34e44f5b1a` — `luci-app-cpu-live: add a live CPU and NSS core load page` (`package/utils/luci-app-cpu-live/`).
-  Status → CPU Load draws per-core CPU usage and the NSS core load in the browser every 2 s, only while the page
-  is open. It lives in its own directory, so merges from kuncy7 do not touch it. Pairs with kuncy7's
-  `luci-app-nss` (NSS box on the Status overview), which is enabled in the production seed alongside it.
-
-## Keeping the changes when updating from kuncy7
-
-1. `git fetch kuncy7 && git merge kuncy7/c3po-tag-8021q`.
-2. Conflict points to check by hand:
-   - `target/linux/qualcommax/patches-6.18/0956` and `0957` — `0958` applies right after `0957`, at the context
-     line `EXPORT_SYMBOL(qca_dwmac_dp_rx_kick);`. If kuncy7 renumbers or rewrites either, redo the merge by hand.
-   - `target/linux/qualcommax/files/include/linux/soc/qcom/qca_dwmac.h` — the owner API declarations.
-   - `package/kernel/qca-dwmac-nss/src/qca_dwmac_nss.c` — specifically the netdev notifier, `port_start`,
-     `port_unwind`, and the debugfs status function.
-3. On a kernel bump (6.19+): re-check that `stmmac_stop_all_dma()`, `stmmac_mac_set()`,
-   `priv->dma_conf.{rx,tx}_queue[0].dma_{rx,tx}_phy`, and the dwmac1000 registers used by patch `0958`
-   (`0x100c`/`0x1010` list addresses, `0x1048`/`0x104c` current descriptors) are still valid — the patch reads and
-   writes those directly.
-4. Bump `PKG_RELEASE` in `package/kernel/qca-dwmac-nss/Makefile` on any change to the glue.
-5. Before flashing any merge that touched the files above: boot the resulting initramfs from RAM (see below) and
-   run the bridge-reload test from `docs/testing.md` (at minimum, T2 and the 5×1 s stress run). Do not skip this —
-   it is the only test that reproduces the bug this fix addresses.
+1. `git fetch kuncy7`. If `git merge-base --is-ancestor <tracked commit> kuncy7/c3po-tag-8021q` holds, merge:
+   `git merge kuncy7/c3po-tag-8021q`. If it does not (he rewrote the branch again), start a new branch from his
+   head and cherry-pick the local commits (`git log <old base>..<old branch>`), as was done for this branch.
+2. Pin the `nss` feed to the commit of `ipq50xx-rebase` you build with and keep the firmware version in the seed
+   (`CONFIG_NSS_FIRMWARE_VERSION_*`) equal to the one the feed defaults to, unless there is a reason not to.
+   `qca-nss-drv` is built for one firmware line; mixing them zeroes the Wi-Fi counters.
+3. Before flashing: boot the resulting initramfs from RAM (see below) and run, at minimum, the boot checks (NSS on
+   both GMACs, 4-bit ECC, both radios up), PPPoE acceleration, and the bridge-reload test from `docs/testing.md`
+   (T2 and the 5×1 s stress run). The trunk-bounce fix is kuncy7's code now, but this board is where it was found.
 
 ## Building
 
