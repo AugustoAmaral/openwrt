@@ -279,6 +279,13 @@ jobs:
             || { echo "::error::kmod-wireguard missing from the repository"; exit 1; }
           compgen -G "$out/packages/luci-app-nss-*.apk" >/dev/null \
             || { echo "::error::luci-app-nss missing from the repository"; exit 1; }
+          # one luci-i18n-nss-<lang> per translation in the tree; a po/<lang> without its
+          # CONFIG_PACKAGE_ line in kmods-extra.config builds no package (10.18 shipped so)
+          n_po=$(find package/nss/luci-app-nss/po -mindepth 1 -maxdepth 1 -type d ! -name templates | wc -l)
+          n_i18n=$(find "$out/packages" -maxdepth 1 -name 'luci-i18n-nss-*.apk' | wc -l)
+          echo "luci-app-nss translations: $n_i18n packages for $n_po in the tree"
+          [[ "$n_i18n" -eq "$n_po" ]] \
+            || { echo "::error::$n_i18n luci-i18n-nss packages for $n_po translations (CONFIG_PACKAGE_luci-i18n-nss-<lang> in kmods-extra.config?)"; exit 1; }
           if grep -q '^CONFIG_PACKAGE_wpad-mesh-mbedtls=[my]' .config; then
             compgen -G "$out/packages/wpad-mesh-mbedtls-*.apk" >/dev/null \
               || { echo "::error::wpad-mesh-mbedtls missing from the repository"; exit 1; }

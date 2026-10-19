@@ -510,7 +510,7 @@ define KernelPackage/ath11k-ahb
   $(call KernelPackage/mac80211/Default)
   TITLE:=Qualcomm 802.11ax AHB wireless chipset support
   URL:=https://wireless.wiki.kernel.org/en/users/drivers/ath11k
-  DEPENDS+= @TARGET_qualcommax +kmod-ath11k +kmod-qrtr-smd
+  DEPENDS+= @(TARGET_qualcommax||TARGET_qualcommbe) +kmod-ath11k +kmod-qrtr-smd
   FILES:=$(PKG_BUILD_DIR)/drivers/net/wireless/ath/ath11k/ath11k_ahb.ko
 # Where an 'nss' service is in the image it loads the bus drivers, not
 # kmodloader: nss-tools-dwmac on ipq50xx after the arm (see kmod-ath11k),

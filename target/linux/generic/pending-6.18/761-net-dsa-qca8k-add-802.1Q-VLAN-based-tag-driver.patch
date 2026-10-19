@@ -361,7 +361,7 @@ Signed-off-by: Stanislaw Pal <kuncy7@gmail.com>
  	case DSA_TAG_PROTO_QCA:
  		tagger_data = ds->tagger_data;
  
-@@ -1906,6 +1914,160 @@ static int qca8k_connect_tag_protocol(st
+@@ -1906,6 +1914,176 @@ static int qca8k_connect_tag_protocol(st
  	return 0;
  }
  
@@ -464,6 +464,22 @@ Signed-off-by: Stanislaw Pal <kuncy7@gmail.com>
 +	if (proto == priv->tag_proto)
 +		return 0;
 +
++	/* A port in a bridge cannot change over. tag_8021q keeps a VLAN for
++	 * each bridge and a PVID for each port, and neither its teardown nor
++	 * its setup brings back what the other mode had: the PVID and the
++	 * VLAN mode of a VLAN-aware bridge's port, or the tag_8021q VLAN of a
++	 * bridge the port is already in. The ports have to be down for the
++	 * change anyway; take them out of their bridges as well.
++	 */
++	dsa_switch_for_each_user_port(dp, ds) {
++		if (dsa_port_bridge_dev_get(dp)) {
++			dev_err(ds->dev,
++				"port %d is in a bridge, take it out to change the tagging protocol\n",
++				dp->index);
++			return -EBUSY;
++		}
++	}
++
 +	switch (proto) {
 +	case DSA_TAG_PROTO_QCA:
 +		dsa_tag_8021q_unregister(ds);
@@ -522,7 +538,7 @@ Signed-off-by: Stanislaw Pal <kuncy7@gmail.com>
  static void qca8k_setup_hol_fixup(struct qca8k_priv *priv, int port)
  {
  	u32 mask;
-@@ -2110,6 +2272,13 @@ qca8k_setup(struct dsa_switch *ds)
+@@ -2110,6 +2288,13 @@ qca8k_setup(struct dsa_switch *ds)
  	/* HW learn on CPU port is limited and require manual setting */
  	ds->assisted_learning_on_cpu_port = true;
  
@@ -536,7 +552,7 @@ Signed-off-by: Stanislaw Pal <kuncy7@gmail.com>
  	return 0;
  }
  
-@@ -2122,6 +2291,7 @@ static const struct phylink_mac_ops qca8
+@@ -2122,6 +2307,7 @@ static const struct phylink_mac_ops qca8
  
  static const struct dsa_switch_ops qca8k_switch_ops = {
  	.get_tag_protocol	= qca8k_get_tag_protocol,
@@ -544,7 +560,7 @@ Signed-off-by: Stanislaw Pal <kuncy7@gmail.com>
  	.setup			= qca8k_setup,
  	.get_strings		= qca8k_get_strings,
  	.get_ethtool_stats	= qca8k_get_ethtool_stats,
-@@ -2151,6 +2321,9 @@ static const struct dsa_switch_ops qca8k
+@@ -2151,6 +2337,9 @@ static const struct dsa_switch_ops qca8k
  	.port_vlan_filtering	= qca8k_port_vlan_filtering,
  	.port_vlan_add		= qca8k_port_vlan_add,
  	.port_vlan_del		= qca8k_port_vlan_del,

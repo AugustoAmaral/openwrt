@@ -144,7 +144,7 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
  		tagger_data = ds->tagger_data;
  
  		tagger_data->rw_reg_ack_handler = qca8k_rw_reg_ack_handler;
-@@ -2007,18 +2044,35 @@ static int qca8k_change_tag_protocol(str
+@@ -2007,12 +2044,28 @@ static int qca8k_change_tag_protocol(str
  				     enum dsa_tag_protocol proto)
  {
  	struct qca8k_priv *priv = ds->priv;
@@ -171,9 +171,10 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
 +		return 0;
 +	}
 +
- 	/* What the 8021q mode kept track of is the other mode's from here on */
- 	memset(priv->bridge_vlans, 0, sizeof(priv->bridge_vlans));
- 	memset(priv->upper_vlans, 0, sizeof(priv->upper_vlans));
+ 	/* A port in a bridge cannot change over. tag_8021q keeps a VLAN for
+ 	 * each bridge and a PVID for each port, and neither its teardown nor
+ 	 * its setup brings back what the other mode had: the PVID and the
+@@ -2035,6 +2088,7 @@ static int qca8k_change_tag_protocol(str
  
  	switch (proto) {
  	case DSA_TAG_PROTO_QCA:
@@ -181,7 +182,7 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
  		dsa_tag_8021q_unregister(ds);
  		qca8k_user_vlan_filter_feature(ds, false);
  		priv->tag_proto = proto;
-@@ -2035,6 +2089,11 @@ static int qca8k_change_tag_protocol(str
+@@ -2051,6 +2105,11 @@ static int qca8k_change_tag_protocol(str
  				return ret;
  		}
  
@@ -193,7 +194,7 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
  		return qca8k_set_hdr_mode(priv, QCA8K_PORT_HDR_CTRL_ALL);
  	case DSA_TAG_PROTO_QCA_8021Q:
  		/* Management frames need the Atheros header; from here on
-@@ -2065,7 +2124,7 @@ static int qca8k_change_tag_protocol(str
+@@ -2081,7 +2140,7 @@ static int qca8k_change_tag_protocol(str
  	}
  
  restore_vlan:

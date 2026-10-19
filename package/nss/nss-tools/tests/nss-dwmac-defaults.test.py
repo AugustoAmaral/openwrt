@@ -233,6 +233,16 @@ json_cleanup() { :; }
     check(r, {'network.wan.device': 'wan', 'network.@device[0].ports': 'eth1',
               'nss.general.topology': 'lan-trunk', 'nss.general.extra_ports': '0:wan'}, 'd50')
 
+    # The same layout with the CPU on switch port 6 (AVM FRITZ!Box 4050): the
+    # fabric module has to be told the port, the port set and the front PHYs.
+    r = run('avm,fritzbox-4050', b3000)
+    check(r, {'network.wan.device': 'wan', 'network.@device[0].ports': 'eth1',
+              'nss.general.topology': 'lan-trunk', 'nss.general.extra_ports': '0:wan',
+              'nss.general.fw_mask': '0x3', 'nss.general.trunk': 'eth1',
+              'nss.general.switch_args': 'cpu_port=6 ports=0x6a '
+              'wake_phys=90000.mdio-1:00,90000.mdio-1:02,90000.mdio-1:04'}, 'fritzbox-4050')
+    assert 'nss.general.vtu' not in r, ('fritzbox-4050', r.get('nss.general.vtu'))
+
     # TP-Link Archer AX55 v1: an RTL8367S-VB on the unbind route - fabric
     # rtl8367s with the switch device at address 29, WAN on VLAN 2 of the
     # trunk like a QCA8337 board, no switch_args (the module's defaults are

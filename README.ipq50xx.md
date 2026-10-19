@@ -625,7 +625,7 @@ The board side is small. The parts, in order of effort:
    (RTL8367D, both radios, see the switch note below), Xiaomi AX6000.
    Straight from the DTS, untested on the trunk: Linksys MX5500 and MR5500,
    Zyxel SCR50AXE, CMCC PZ-L8, I-O DATA WN-DAX3000GR, Elecom WRC-X3000GS2 /
-   GST2, Yuncore AX830 and AX850. On those the settings apply themselves on
+   GST2, Yuncore AX830 and AX850, AVM FRITZ!Box 4050. On those the settings apply themselves on
    first boot. Anything else logs a line telling you to set them by hand.
 
    The `dsa` topology needs no table entry. Besides the GL-B3000 it has run
