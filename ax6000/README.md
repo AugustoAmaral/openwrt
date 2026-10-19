@@ -1,7 +1,7 @@
 # Xiaomi AX6000 (IPQ5018) — branch `ax6000-2026-10`
 
 This branch builds OpenWrt for one board only: the Xiaomi AX6000. It is
-[kuncy7/openwrt-nss-edma](https://github.com/kuncy7/openwrt-nss-edma) plus these notes and one LuCI page of my own.
+[kuncy7/openwrt-nss-edma](https://github.com/kuncy7/openwrt-nss-edma) plus these notes; it adds no code of its own.
 Maintained by Augusto Amaral.
 
 ## What this branch is
@@ -57,11 +57,8 @@ chip's requirement) while it ran 4-bit; the current one reports `4`.
 
 ## Local changes on top of kuncy7
 
-- `ax6000/` — these notes, the trunk-bounce write-up, the test record and the bench tools.
-- `package/utils/luci-app-cpu-live/` — Status → CPU Load draws per-core CPU usage and the NSS core load in the
-  browser every 2 s, only while the page is open (reads `/sys/kernel/debug/qca-nss-drv/stats/cpu_load_ubi`). It
-  lives in its own directory, so updates from kuncy7 do not touch it. Pairs with kuncy7's `luci-app-nss` (NSS box
-  on the Status overview), which is enabled in the production seed alongside it.
+- `ax6000/` — these notes, the trunk-bounce write-up, the test record and the bench tools. Nothing outside this
+  directory differs from kuncy7's tree, so an image built from here is the same as one built from his.
 
 The trunk-bounce fix (kernel patch `0958` + the glue changes in `qca-dwmac-nss`) used to be two local commits. kuncy7
 merged them from [PR #14](https://github.com/kuncy7/openwrt-nss-edma/pull/14) on 2026-09-27 and carries them as
