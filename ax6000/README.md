@@ -7,14 +7,15 @@ Maintained by Augusto Amaral.
 ## What this branch is
 
 - **Base:** OpenWrt `main` (kernel 6.18) plus the IPQ5018 NSS layer from kuncy7's `openwrt-nss-edma`, branch
-  `c3po-tag-8021q`. This branch (`ax6000-2026-10`) tracks that tree at commit `41998763c9` (2026-10-17; OpenWrt
-  `main` merged up to `5df6ceb3d4`, 2026-10-16; kernel 6.18.55).
+  `c3po-tag-8021q`. This branch (`ax6000-2026-10`) tracks that tree by merge; it is at commit `9e82f2b3a2`
+  (2026-10-18; OpenWrt `main` merged on 2026-10-18; kernel 6.18.55).
 - **Feed:** `nss-packages` (kuncy7), branch `ipq50xx-rebase`, the companion feed for `c3po-tag-8021q`. Pin it to a
-  commit before a release build. This branch's images use `e525310` (branch head on 2026-10-17) and NSS firmware
+  commit before a release build. The image in flash uses `a8e0e5c` (branch head on 2026-10-19) and NSS firmware
   12.5-210, the version kuncy7's release images carry since 2026-10-15.
 - **Previous branch:** `ax6000` (kuncy7 `87cfd3190e`, kernel 6.18.52, firmware 12.2) is kept as an archive. kuncy7
   rewrote `c3po-tag-8021q` on 2026-10-10 (his backup: `c3po-tag-8021q-pre-sync-20261010`), so the old branch cannot
-  be merged forward; this one was started fresh from his tree and the local commits were cherry-picked onto it.
+  be merged forward; this one was started fresh from his tree at `41998763c9` (2026-10-17), the local commits were
+  cherry-picked onto it, and from then on it follows his tree by plain merges (first one: `9e82f2b3a2`).
 - **Topology:** `dsa`. The QCA8337 switch keeps its normal `qca8k` DSA driver, so `lan1`–`lan3` are real DSA
   ports and LuCI's port-status page works unmodified; `wan` is the 2.5G PHY on the second GMAC, outside the switch.
   The `qca-8021q` tagger and a small glue module (`qca-dwmac-nss`) give the NSS firmware one interface per bridge
@@ -37,22 +38,22 @@ matching kernel module) install from the official OpenWrt repository normally.
 
 | Area | Status | Measured |
 |---|---|---|
-| Cable → PPPoE, accelerated | ✅ on the previous branch | 711–729 Mbit/s over 15 runs (RAM and flash, two builds); see `docs/testing.md` |
-| Wi-Fi, 2.4 GHz, NSS offload | ✅ on the previous branch | offload confirmed active (firmware `if_num` present, frames counted in `wifili`); throughput not isolated per band |
-| Wi-Fi, 5 GHz, NSS offload | ✅ on the previous branch | offload confirmed active; one informal phone measurement: 578 Mbit/s down / 449 Mbit/s up |
-| Trunk-bounce fix | ✅ upstream in kuncy7's tree since 2026-09-27 (PR #14) | see `docs/trunk-bounce-fix.md` and `docs/testing.md` |
-| This branch (`ax6000-2026-10`) | ⏳ built, not yet booted | everything above has to be repeated on it before it goes to flash |
+| Cable → PPPoE, accelerated | ✅ | 722.8 / 728.4 Mbit/s (RAM) and 729.2 Mbit/s (flash) on this branch, 2026-10-19; 711–729 Mbit/s over 15 runs on the previous branch; see `docs/testing.md` |
+| Wi-Fi, 2.4 GHz, NSS offload | ✅ on the previous branch; up and serving clients on this one | offload confirmed active (firmware `if_num` present, frames counted in `wifili`); throughput not isolated per band |
+| Wi-Fi, 5 GHz, NSS offload | ✅ on the previous branch; up and serving clients on this one | offload confirmed active; one informal phone measurement: 578 Mbit/s down / 449 Mbit/s up |
+| Trunk-bounce fix | ✅ upstream in kuncy7's tree since 2026-09-27 (PR #14); T2–T5 and both stress runs pass on this branch | see `docs/trunk-bounce-fix.md` and `docs/testing.md` |
+| This branch (`ax6000-2026-10`) | ✅ in flash since 2026-10-19 05:24 UTC (`r37761+8-9e82f2b3a2`) | RAM test with the full production config, then flash; see `docs/testing.md` § 2026-10-19 |
 | Everything else | — | see `docs/testing.md` § Not tested for the full list (IPv6 offload, long-term stability, cable unplug/replug under firmware control, SQM, other boards, …) |
-
-All measurements so far come from the previous branch (`ax6000`, image `r36760-f2c7091b27`, in flash since
-2026-09-27 02:48 UTC).
 
 **NAND ECC:** this unit has the ESMT F50D1G41LB SPI-NAND (64-byte OOB), which the vendor bootloader runs with 4-bit
 ECC. Since 2026-09-27 (`88d3c30f18`, openwrt#24959) OpenWrt `main` forces 8-bit ECC in the AX6000 device tree, which
 suits the GigaDevice variant (128-byte OOB) but not this one. kuncy7's tree removes the forced value and picks the
 strength from the OOB size (`cf933e6b8f`, patch `0422`; it logs nothing about it). Do not flash this unit with a plain
-OpenWrt `main` image built after 2026-09-27. On any new image, check `cat /sys/class/mtd/mtd0/ecc_strength` = 4 and
-no new ECC/UBI read errors in dmesg before flashing.
+OpenWrt `main` image built after 2026-09-27. On any new image, booted from RAM, check that the fixed bootloader
+partitions (`mtd0`–`mtd9`, `mtd11`–`mtd13`) read back with the same md5 as under the running image, that
+`/sys/class/mtd/mtd*/ecc_failures` stays 0, and that dmesg has no new ECC/UBI read errors. Wrong ECC strength cannot
+decode those pages. `cat /sys/class/mtd/mtd0/ecc_strength` alone is not proof: the older driver reported `1` (the
+chip's requirement) while it ran 4-bit; the current one reports `4`.
 
 ## Local changes on top of kuncy7
 

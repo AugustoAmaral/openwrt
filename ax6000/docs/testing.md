@@ -73,6 +73,23 @@ loaded at boot).
 | T2 | flash | ✅ resumed; cable both directions; 718.9 Mbit/s |
 | Revert | flash (bridge option removed again, 0 pending changes) | ✅ resumed; 728.9 Mbit/s |
 
+## Run on `ax6000-2026-10` (kuncy7 `9e82f2b3a2` merged), 2026-10-19
+
+Image `r37761+8-9e82f2b3a2` (kernel 6.18.55, NSS firmware 12.5-210, feeds pinned to their heads on 2026-10-19).
+Reference on the old image the same night, same method: 717.0 Mbit/s cable → PPPoE.
+
+| Test | Where it ran | Result |
+|---|---|---|
+| Boot + NAND ECC | RAM, factory config | ✅ the 13 fixed bootloader partitions (`mtd0`–`mtd9`, `mtd11`–`mtd13`) read back with the same md5 as under the old driver, `ecc_failures` 0, UBI attached with no error. Note: sysfs `ecc_strength` is not proof — the old image showed `1` (the chip requirement) while its engine ran 4-bit; the new one shows `4` |
+| NSS | RAM | ✅ `nss core 0 booted`, both GMACs on the firmware data plane, `dsa`, `fw_mask 0x3` |
+| Production config | RAM, `sysupgrade -r` of the production backup + service restarts | ✅ uci, `/etc/config` hashes, enabled and running services, interfaces, Wi-Fi, DNS/adblock, LuCI certificate and cron identical to production; only versions, the new PPPoE address/IPv6 prefix and cosmetic nft set order differ |
+| Load | RAM | ✅ 722.8 Mbit/s before the reload tests, 728.4 after; `accelerated_count` > 0 |
+| T2, T3, T4, T5 | RAM, over SSH | ✅ cable alive and DMA resumed after each; T3 is LuCI's apply with rollback over HTTPS, confirmed |
+| Stress 5×1 s / 5×3 s | RAM | ✅ `noresume=0`, `notstarted=0` |
+| dmesg | RAM | ✅ no `Oops`/`BUG`/`WARNING` |
+| Flash | `sysupgrade -v`, config kept | ✅ same SSH host key; state diff against the old image limited to versions and addresses; 729.2 Mbit/s; T2 resumed |
+| Wi-Fi | flash | ✅ both radios up on the same channels; 2.4 GHz clients back within a minute, 5 GHz clients back over the following hour (as after earlier reboots) |
+
 ## Long-running / production checks
 
 **Long RAM test with production config, 2026-09-26 18:30–19:13 UTC** (this is the run
@@ -113,8 +130,8 @@ worked natively for `lan1`-`lan3`/`wan` (speed and TX/RX counters), with no loca
   `link_state`, not the DMA, so it is expected to be unaffected by both the original bug and the fix — but this
   has not been measured either way.
 - **Updating this fork from kuncy7's tree.** The first update (2026-10-17, branch `ax6000-2026-10`) had to start
-  over from kuncy7's rewritten branch and cherry-pick the local commits; a plain merge from his tree has still never
-  been exercised. Nothing on the new branch has been tested on hardware yet.
+  over from kuncy7's rewritten branch and cherry-pick the local commits; the second (2026-10-19) was a plain merge
+  of his tree and is what runs in flash now.
 - **SQM of any kind.** Since 2026-09-27 the image carries `sch_cake` and `ifb`, but no SQM has been configured or
   measured, and no NSS-accelerated SQM has been tried on `ipq50xx`.
 - **Other boards.** Every test above ran on a single Xiaomi AX6000. The glue's port-to-netdev mapping supports
