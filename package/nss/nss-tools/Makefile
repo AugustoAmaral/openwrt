@@ -14,7 +14,9 @@ define Package/nss-tools
   SECTION:=net
   CATEGORY:=Network
   TITLE:=NSS offload runtime tools (nss-up, nss-status)
-  DEPENDS:=@(TARGET_qualcommax_ipq807x||TARGET_qualcommax_ipq60xx) \
+  # Needs kmod-qca-ppe-nss, broken since main moved qca_edma to the
+  # in-band QCA tag; see there.
+  DEPENDS:=@BROKEN @(TARGET_qualcommax_ipq807x||TARGET_qualcommax_ipq60xx) \
 	+TARGET_qualcommax_ipq807x:kmod-qca-ppe-nss \
 	+TARGET_qualcommax_ipq60xx:kmod-qca-ppe-nss \
 	+kmod-qca-nss-drv \

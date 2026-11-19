@@ -1,8 +1,8 @@
-From c814a88f1af76c6d0ef0e4485e300ba34cbdacbd Mon Sep 17 00:00:00 2001
+From 225f2e4b585904e01e83d5359314d749ec7db328 Mon Sep 17 00:00:00 2001
 From: Mieczyslaw Nalewaj <namiltd@yahoo.com>
 Date: Fri, 24 Jul 2026 03:09:09 +0200
-Subject: [PATCH net-next v6 6/9] net: dsa: realtek: rtl8365mb: use raw VID for
- PVID on family D
+Subject: [PATCH net-next v7 06/10] net: dsa: realtek: rtl8365mb: use raw VID
+ for PVID on family D
 
 Family D has no working VLAN member config (MC) table. Its PVID is a
 raw 12-bit VID in a per-port register at 0x0700 + port, whereas family C
@@ -28,18 +28,20 @@ rtl8365mb_port_vlan_filtering() would accept untagged frames into it.
 
 No functional change for family C.
 
+The family D branch is not reachable until the chip table entry is
+added in the last patch.
+
 Signed-off-by: Mieczyslaw Nalewaj <namiltd@yahoo.com>
+Reviewed-by: Linus Walleij <linusw@kernel.org>
 ---
  drivers/net/dsa/realtek/rtl8365mb_main.c |   9 +
  drivers/net/dsa/realtek/rtl8365mb_vlan.c | 205 ++++++++++++++++++++++-
  drivers/net/dsa/realtek/rtl8365mb_vlan.h |   1 +
  3 files changed, 210 insertions(+), 5 deletions(-)
 
-diff --git a/drivers/net/dsa/realtek/rtl8365mb_main.c b/drivers/net/dsa/realtek/rtl8365mb_main.c
-index f00c1c2..f8063d2 100644
 --- a/drivers/net/dsa/realtek/rtl8365mb_main.c
 +++ b/drivers/net/dsa/realtek/rtl8365mb_main.c
-@@ -2356,6 +2356,15 @@ static int rtl8365mb_vlan_setup(struct dsa_switch *ds)
+@@ -2507,6 +2507,15 @@ static int rtl8365mb_vlan_setup(struct d
  	int ret;
  
  	dsa_switch_for_each_available_port(dp, ds) {
@@ -55,8 +57,6 @@ index f00c1c2..f8063d2 100644
  		/* Disable vlan-filtering for all ports */
  		ret = rtl8365mb_port_vlan_filtering(ds, dp->index, false, NULL);
  		if (ret) {
-diff --git a/drivers/net/dsa/realtek/rtl8365mb_vlan.c b/drivers/net/dsa/realtek/rtl8365mb_vlan.c
-index 36f0d2a..f44d7ec 100644
 --- a/drivers/net/dsa/realtek/rtl8365mb_vlan.c
 +++ b/drivers/net/dsa/realtek/rtl8365mb_vlan.c
 @@ -44,6 +44,10 @@
@@ -91,7 +91,7 @@ index 36f0d2a..f44d7ec 100644
   *   - ACL configuration
   *   - selection of VLAN by the CPU tag when VSEL=1, although the switch
   *     can also select VLAN based on the VLAN tag if VSEL=0
-@@ -740,14 +749,51 @@ int rtl8365mb_vlan_port_get_pvid(struct realtek_priv *priv, int port, u16 *pvid)
+@@ -740,14 +749,51 @@ int rtl8365mb_vlan_port_get_pvid(struct
  	u8 vlanmc_idx;
  	int ret;
  
@@ -147,11 +147,10 @@ index 36f0d2a..f44d7ec 100644
  /*
   * rtl8365mb_vlan_port_get_framefilter() - Get the ingress frame filtering mode
   * for a port
-@@ -809,6 +855,68 @@ rtl8365mb_vlan_port_set_framefilter(struct realtek_priv *priv,
- 				  val);
+@@ -810,6 +856,68 @@ rtl8365mb_vlan_port_set_framefilter(stru
  }
  
-+/*
+ /*
 + * rtl8365mb_vlan_pvid_port_set_direct() - Configure a port's PVID as a raw
 + * VID written to its dedicated register, for chip families without a
 + * working VLAN MC table (RTL8365MB_FAMILY_D)
@@ -213,10 +212,11 @@ index 36f0d2a..f44d7ec 100644
 +	return ret;
 +}
 +
- /*
++/*
   * rtl8365mb_vlan_pvid_port_set() - Configure a port's PVID and associated
   * VLANMC entry
-@@ -821,6 +929,9 @@ rtl8365mb_vlan_port_set_framefilter(struct realtek_priv *priv,
+  * @ds: dsa switch instance
+@@ -821,6 +929,9 @@ rtl8365mb_vlan_port_set_framefilter(stru
   * PVID. Gracefully unwinds and restores previous configuration if a hardware
   * write operation fails during execution.
   *
@@ -226,7 +226,7 @@ index 36f0d2a..f44d7ec 100644
   * Context: Can sleep. Must be called with &priv->vlan_lock held.
   * Takes and releases &priv->map_lock.
   * Return: 0 on success, or a negative error code on failure.
-@@ -838,6 +949,13 @@ int rtl8365mb_vlan_pvid_port_set(struct dsa_switch *ds, int port, u16 vid,
+@@ -838,6 +949,13 @@ int rtl8365mb_vlan_pvid_port_set(struct
  
  	lockdep_assert_held(&priv->vlan_lock);
  
@@ -240,11 +240,10 @@ index 36f0d2a..f44d7ec 100644
  	/* Read the old PVID exclusively to undo in case of error */
  	ret = rtl8365mb_vlan_get_pvid_mc(priv, port, &prev_vlanmc_idx,
  					 &prev_vlanmc);
-@@ -917,6 +1035,77 @@ undo_vlan_mc_port_set:
- 	return ret;
+@@ -918,6 +1036,77 @@ undo_vlan_mc_port_set:
  }
  
-+/*
+ /*
 + * rtl8365mb_vlan_pvid_port_clear_direct() - Remove a port's raw-VID PVID
 + * configuration, for chip families without a working VLAN MC table
 + * (RTL8365MB_FAMILY_D)
@@ -315,9 +314,10 @@ index 36f0d2a..f44d7ec 100644
 +	return ret;
 +}
 +
- /*
++/*
   * rtl8365mb_vlan_pvid_port_clear() - Remove a port's PVID configuration
   * @ds: dsa switch instance
+  * @port: port index
 @@ -926,6 +1115,9 @@ undo_vlan_mc_port_set:
   * Resets the target port's hardware PVID allocation to 0. Cleans up and frees
   * the associated VLANMC entry if no other ports are referencing it.
@@ -328,7 +328,7 @@ index 36f0d2a..f44d7ec 100644
   * Context: Can sleep. Must be called with &priv->vlan_lock held.
   * Takes and releases &priv->map_lock.
   * Return: 0 on success, or a negative error code on failure.
-@@ -940,6 +1132,9 @@ int rtl8365mb_vlan_pvid_port_clear(struct dsa_switch *ds, int port, u16 vid)
+@@ -940,6 +1132,9 @@ int rtl8365mb_vlan_pvid_port_clear(struc
  
  	lockdep_assert_held(&priv->vlan_lock);
  
@@ -338,8 +338,6 @@ index 36f0d2a..f44d7ec 100644
  	ret = rtl8365mb_vlan_get_pvid_mc(priv, port, &vlanmc_idx,
  					 &vlanmc);
  	if (ret) {
-diff --git a/drivers/net/dsa/realtek/rtl8365mb_vlan.h b/drivers/net/dsa/realtek/rtl8365mb_vlan.h
-index 27a526b..9971fb6 100644
 --- a/drivers/net/dsa/realtek/rtl8365mb_vlan.h
 +++ b/drivers/net/dsa/realtek/rtl8365mb_vlan.h
 @@ -20,6 +20,7 @@ enum rtl8365mb_frame_ingress {
@@ -350,6 +348,3 @@ index 27a526b..9971fb6 100644
  int
  rtl8365mb_vlan_port_get_framefilter(struct realtek_priv *priv,
  				    int port,
--- 
-2.53.0
-

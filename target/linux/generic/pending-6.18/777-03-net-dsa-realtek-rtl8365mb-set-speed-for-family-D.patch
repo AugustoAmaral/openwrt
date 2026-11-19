@@ -1,7 +1,7 @@
-From 78fb3c9406f818ee933310ca9fce93518c8e3100 Mon Sep 17 00:00:00 2001
+From 12e6ac18ee8443871744f9303a3a87ddc8c8478f Mon Sep 17 00:00:00 2001
 From: Mieczyslaw Nalewaj <namiltd@yahoo.com>
 Date: Wed, 22 Jul 2026 22:47:26 +0200
-Subject: [PATCH net-next v6 3/9] net: dsa: realtek: rtl8365mb: set speed for
+Subject: [PATCH net-next v7 03/10] net: dsa: realtek: rtl8365mb: set speed for
  family D
 
 On family C hardware, forcing a 2.5 Gbps link speed requires relying
@@ -22,16 +22,18 @@ forced mode: the vendor RTL8367D API writes 0xFFFF there when the MAC
 is forced and 0 otherwise. This driver always forces the MAC, as on
 family C, so it writes 0xFFFF on every call, including link down.
 
+The family D branch is not reachable until the chip table entry is
+added in the last patch.
+
 Signed-off-by: Mieczyslaw Nalewaj <namiltd@yahoo.com>
+Reviewed-by: Linus Walleij <linusw@kernel.org>
 ---
  drivers/net/dsa/realtek/rtl8365mb_main.c | 82 ++++++++++++++++++++----
  1 file changed, 69 insertions(+), 13 deletions(-)
 
-diff --git a/drivers/net/dsa/realtek/rtl8365mb_main.c b/drivers/net/dsa/realtek/rtl8365mb_main.c
-index 840db5a..2dabc4d 100644
 --- a/drivers/net/dsa/realtek/rtl8365mb_main.c
 +++ b/drivers/net/dsa/realtek/rtl8365mb_main.c
-@@ -344,6 +344,7 @@
+@@ -332,6 +332,7 @@
  #define RTL8365MB_PORT_SPEED_10M	0
  #define RTL8365MB_PORT_SPEED_100M	1
  #define RTL8365MB_PORT_SPEED_1000M	2
@@ -39,7 +41,7 @@ index 840db5a..2dabc4d 100644
  
  /* External interface force configuration registers 0~2 */
  #define RTL8365MB_DIGITAL_INTERFACE_FORCE_REG0		0x1310 /* EXT0 */
-@@ -361,6 +362,28 @@
+@@ -349,6 +350,28 @@
  #define   RTL8365MB_DIGITAL_INTERFACE_FORCE_LINK_MASK		BIT(4)
  #define   RTL8365MB_DIGITAL_INTERFACE_FORCE_DUPLEX_MASK		BIT(2)
  #define   RTL8365MB_DIGITAL_INTERFACE_FORCE_SPEED_MASK		GENMASK(1, 0)
@@ -68,7 +70,7 @@ index 840db5a..2dabc4d 100644
  
  /* CPU port mask register - controls which ports are treated as CPU ports */
  #define RTL8365MB_CPU_PORT_MASK_REG	0x1219
-@@ -1646,23 +1669,32 @@ static int rtl8365mb_ext_config_forcemode(struct realtek_priv *priv, int port,
+@@ -1581,23 +1604,32 @@ static int rtl8365mb_ext_config_forcemod
  	u32 r_duplex;
  	u32 r_speed;
  	u32 r_link;
@@ -106,7 +108,7 @@ index 840db5a..2dabc4d 100644
  			r_speed = RTL8365MB_PORT_SPEED_1000M;
  		} else if (speed == SPEED_100) {
  			r_speed = RTL8365MB_PORT_SPEED_100M;
-@@ -1692,20 +1724,44 @@ static int rtl8365mb_ext_config_forcemode(struct realtek_priv *priv, int port,
+@@ -1627,20 +1659,44 @@ static int rtl8365mb_ext_config_forcemod
  		r_duplex = 0;
  	}
  
@@ -159,6 +161,3 @@ index 840db5a..2dabc4d 100644
  
  	return 0;
  }
--- 
-2.53.0
-

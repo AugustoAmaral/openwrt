@@ -243,23 +243,54 @@ json_cleanup() { :; }
               'wake_phys=90000.mdio-1:00,90000.mdio-1:02,90000.mdio-1:04'}, 'fritzbox-4050')
     assert 'nss.general.vtu' not in r, ('fritzbox-4050', r.get('nss.general.vtu'))
 
-    # TP-Link Archer AX55 v1: an RTL8367S-VB on the unbind route - fabric
+    # Ruijie RG-MA3063: the D50 layout with the CPU on switch port 6 and
+    # three front ports (lan2-lan4 on switch ports 1-3).
+    r = run('ruijie,rg-ma3063', b3000)
+    check(r, {'network.wan.device': 'wan', 'network.@device[0].ports': 'eth1',
+              'nss.general.topology': 'lan-trunk', 'nss.general.extra_ports': '0:wan',
+              'nss.general.fw_mask': '0x3', 'nss.general.trunk': 'eth1',
+              'nss.general.switch_args': 'cpu_port=6 ports=0x4e '
+              'wake_phys=90000.mdio-1:00,90000.mdio-1:01,90000.mdio-1:02'}, 'rg-ma3063')
+    assert not r.get('nss.general.vtu'), ('rg-ma3063', r.get('nss.general.vtu'))
+
+    # Netgear WAX630E: an access point with no switch and no WAN - lan1
+    # (QCA8081 on GMAC1) and lan2 (GE PHY on GMAC0) are both in br-lan, and
+    # keep_bridge leaves them there instead of putting the trunk in alone.
+    wax630e = {k: v for k, v in b3000.items() if not k.startswith('network.wan')}
+    wax630e.update({'network.lan.proto': 'dhcp', 'network.@device[0].ports': 'lan1 lan2'})
+    r = run('netgear,wax630e', wax630e)
+    check(r, {'network.@device[0].ports': 'lan1 lan2', 'network.lan.device': 'br-lan',
+              'network.lan.proto': 'dhcp', 'nss.general.topology': 'lan-trunk',
+              'nss.general.fw_mask': '0x3', 'nss.general.trunk': 'lan1',
+              'nss.general.trunk_if': '1', 'nss.general.extra_ports': '0:lan2',
+              'nss.general.fabric': 'none', 'nss.general.wifi_offload': '1'}, 'wax630e')
+    for key in ('nss.general.vtu', 'nss.general.switch_args', 'nss.general.switch_dev'):
+        assert key not in r, ('wax630e', key, r[key])
+    assert not [k for k in r if k.startswith('network.wan')], ('wax630e', 'a wan appeared')
+    assert run('netgear,wax630e', r) == r, 'WAX630E second run must change nothing'
+    # Control: an entry without keep_bridge still puts its trunk into br-lan alone.
+    r = run('yuncore,ax830', wax630e)
+    check(r, {'network.@device[0].ports': 'lan'}, 'ax830 without keep_bridge')
+
+    # TP-Link Archer AX53 v2 / AX55 v1: an RTL8367S-VB on the unbind route - fabric
     # rtl8367s with the switch device at address 29, WAN on VLAN 2 of the
     # trunk like a QCA8337 board, no switch_args (the module's defaults are
     # this wiring), and a tagged ISP handover moves the VTU's wan block.
-    r = run('tplink,archer-ax55-v1', b3000)
-    check(r, {'nss.general.fw_mask': '0x2', 'nss.general.trunk': 'eth0',
-              'nss.general.fabric': 'rtl8367s', 'nss.general.switch_dev': '90000.mdio-1:1d',
-              'nss.general.vtu': '1:6t,1u,2u,3u,4u;2:6t,0u', 'nss.general.topology': 'vlan-trunk',
-              'nss.general.wifi_offload': '1', 'network.wan.device': 'eth0.2',
-              'network.wan6.device': 'eth0.2', 'network.@device[0].ports': 'eth0.1'}, 'ax55')
-    for key in ('nss.general.switch_args', 'nss.general.extra_ports', 'nss.general.trunk_if'):
-        assert key not in r, ('ax55', key, r[key])
-    assert run('tplink,archer-ax55-v1', r) == r, 'second run must change nothing'
-    r = run('tplink,archer-ax55-v1', dict(b3000, **{'network.wan.device': 'eth0.35',
-                                                     'network.wan6.device': 'eth0.35'}))
-    check(r, {'network.wan.device': 'eth0.35', 'nss.general.vtu': '1:6t,1u,2u,3u,4u;35:6t,0u'},
-          'ax55 vid 35')
+    for board in ('tplink,archer-ax53-v2', 'tplink,archer-ax55-v1', 'tplink,archer-ax58-v2'):
+        tag = 'ax53' if 'ax53' in board else ('ax58' if 'ax58' in board else 'ax55')
+        r = run(board, b3000)
+        check(r, {'nss.general.fw_mask': '0x2', 'nss.general.trunk': 'eth0',
+                  'nss.general.fabric': 'rtl8367s', 'nss.general.switch_dev': '90000.mdio-1:1d',
+                  'nss.general.vtu': '1:6t,1u,2u,3u,4u;2:6t,0u', 'nss.general.topology': 'vlan-trunk',
+                  'nss.general.wifi_offload': '1', 'network.wan.device': 'eth0.2',
+                  'network.wan6.device': 'eth0.2', 'network.@device[0].ports': 'eth0.1'}, tag)
+        for key in ('nss.general.switch_args', 'nss.general.extra_ports', 'nss.general.trunk_if'):
+            assert key not in r, (tag, key, r[key])
+        assert run(board, r) == r, 'second run must change nothing'
+        r = run(board, dict(b3000, **{'network.wan.device': 'eth0.35',
+                                      'network.wan6.device': 'eth0.35'}))
+        check(r, {'network.wan.device': 'eth0.35', 'nss.general.vtu': '1:6t,1u,2u,3u,4u;35:6t,0u'},
+              f'{tag} vid 35')
 
     # TP-Link EX511 v2: a headerless RTL8367D that keeps its DSA driver. One
     # flat LAN on the untagged trunk, no VTU, no fabric module; the five DSA
@@ -317,38 +348,37 @@ json_cleanup() { :; }
     assert not [k for k in r if k.startswith('network.wan')], ('ex511 no wan', 'wan reappeared')
 
     # With the switch driver bound the dsa topology is picked and the trunk
-    # table never runs. On the AX5400 board.d splits the ports across both CPU
-    # links - lan1-3 on eth1, wan on eth0 - and this topology cannot keep that:
-    # only the armed conduit's ports reach the firmware, and on this board the
-    # odd link is the dead-RX GMAC0 (openwrt#24696). The WAN port follows the
-    # majority onto eth1; nothing else about the config is touched.
+    # table never runs. On the AX5400, the Cudy P5, the CMCC PZ-L8 and the
+    # CR880x board.d splits the ports across both CPU links - lan1-3 on eth1,
+    # wan on eth0 - and the split is kept: the plane arms every GMAC DSA gave
+    # user ports, so both conduits reach the firmware. Nothing about the
+    # network config is touched.
     #
     # A fresh flash first, as it really is: board.d's split sits in
     # /etc/board.json and /etc/config/network has no device section for any
-    # port (forum #402 - the WAN stayed on eth0 until one was added by hand).
-    # wan gets a new section of its own; the lan ports, already on eth1 by
-    # board.json, get nothing.
+    # port. No conduit is written anywhere, and no section is added.
     split = {'model': {'id': 'xiaomi,redmi-ax5400'}, 'network_device': {
         'lan1': {'conduit': 'eth1'}, 'lan2': {'conduit': 'eth1'},
         'lan3': {'conduit': 'eth1'}, 'wan': {'conduit': 'eth0'}}}
     fresh = dict(b3000, **{'network.@device[0].ports': 'lan1 lan2 lan3'})
-    r = run_dsa_both('xiaomi,redmi-ax5400', fresh, split)
-    check(r, {'nss.general.topology': 'dsa', 'network.new1': 'device',
-              'network.new1.name': 'wan', 'network.new1.conduit': 'eth1',
-              'network.wan.device': 'wan', 'network.@device[0].ports': 'lan1 lan2 lan3'},
-          'ra74 dsa fresh')
-    assert len([k for k in r if k.endswith('.conduit')]) == 1, ('ra74 dsa fresh', r)
+    for b in ('xiaomi,redmi-ax5400', 'xiaomi,cr8806'):
+        r = run_dsa_both(b, fresh, split)
+        check(r, {'nss.general.topology': 'dsa', 'network.wan.device': 'wan',
+                  'network.@device[0].ports': 'lan1 lan2 lan3'}, b + ' dsa fresh')
+        assert not [k for k in r if k.endswith('.conduit')], (b, 'dsa fresh', r)
+        assert not [k for k in r if k.startswith('network.new')], (b, 'dsa fresh', r)
 
-    # A device section that names wan already (a MAC override) takes the
-    # conduit: a second section for the same device is not made.
+    # A device section that names wan already (a MAC override) is left as it
+    # is: no conduit is added to it either.
     mac = dict(fresh, **{'network.cfg3': 'device', 'network.cfg3.name': 'wan',
                          'network.cfg3.macaddr': '02:00:00:00:00:01'})
     r = run_dsa_both('xiaomi,redmi-ax5400', mac, split)
-    check(r, {'network.cfg3.name': 'wan', 'network.cfg3.conduit': 'eth1',
+    check(r, {'network.cfg3.name': 'wan',
               'network.cfg3.macaddr': '02:00:00:00:00:01'}, 'ra74 dsa mac section')
+    assert 'network.cfg3.conduit' not in r, ('ra74 dsa mac section', r)
     assert not [k for k in r if k.startswith('network.new')], ('ra74 dsa mac section', r)
 
-    # A section that already put wan on eth1 overrides board.json: nothing to do.
+    # A section that put wan on eth1 by hand overrides board.json: kept too.
     moved = dict(fresh, **{'network.cfg3': 'device', 'network.cfg3.name': 'wan',
                            'network.cfg3.conduit': 'eth1'})
     assert run_dsa_both('xiaomi,redmi-ax5400', moved, split) == dict(
@@ -363,9 +393,9 @@ json_cleanup() { :; }
         r = run_dsa_both('glinet,gl-b3000', b3000, bj)
         assert not [k for k in r if k.endswith('.conduit')], ('no split', bj, r)
 
-    # The same split set by LuCI instead, as uci sections: the sections move.
+    # The same split set by LuCI instead, as uci sections: they stay put.
     r = run_dsa('xiaomi,redmi-ax5400', ra74)
-    check(r, {'nss.general.topology': 'dsa', 'network.cfg2.conduit': 'eth1',
+    check(r, {'nss.general.topology': 'dsa', 'network.cfg2.conduit': 'eth0',
               'network.cfg1.conduit': 'eth1', 'network.cfg4.conduit': 'eth1',
               'network.cfg5.conduit': 'eth1', 'network.cfg2.name': 'wan',
               'network.wan.device': 'wan', 'network.@device[0].ports': 'lan1 lan2 lan3'}, 'ra74 dsa')
@@ -381,8 +411,7 @@ json_cleanup() { :; }
               'network.wan.device': 'wan'}, 'b3000 dsa')
     assert not [k for k in r if k.endswith('.conduit')], ('b3000 dsa', 'a conduit appeared')
 
-    # One port on each link: there is nothing here to say which link works, so
-    # both conduits are left as they are.
+    # One port on each link: both conduits are left as they are, as above.
     even = dict(b3000, **{'network.cfg1': 'device', 'network.cfg1.name': 'lan1',
                           'network.cfg1.conduit': 'eth1',
                           'network.cfg2': 'device', 'network.cfg2.name': 'wan',
@@ -407,8 +436,8 @@ json_cleanup() { :; }
 
     # An Airoha AN8855 (Xiaomi AX3000T v2): the switch MFD binds on the MDIO
     # bus as 'an8855', and that alone picks the dsa topology. All four ports
-    # sit on one CPU link, so nothing is consolidated, and the plane is on
-    # as on the other dsa boards: the an8855-8021q tagger carries its traffic.
+    # sit on one CPU link, and the plane is on as on the other dsa boards:
+    # the an8855-8021q tagger carries its traffic.
     (tmp / 'mdio' / 'qca8k').rename(tmp / 'mdio' / 'qca8k.off')
     an8855 = tmp / 'mdio' / 'an8855'
     an8855.mkdir()
@@ -423,7 +452,9 @@ json_cleanup() { :; }
     (tmp / 'mdio' / 'qca8k.off').rename(tmp / 'mdio' / 'qca8k')
 
 print('PASS: RA74 and Cudy P5 dual link, rerun, Wi-Fi choice kept, tagged WAN, '
-      'no wan6, migrated config, B3000 MAC clone, D50 LAN-only trunk, '
-      'EX511 headerless switch, dsa conduit consolidation (AX5400 fresh from board.json, '
-      'existing wan section, uci override, LuCI sections, B3000, even split), '
+      'no wan6, migrated config, B3000 MAC clone, D50 LAN-only trunk, RG-MA3063, '
+      'WAX630E keeps br-lan, '
+      'EX511 headerless switch, dsa conduits left alone (AX5400 and CR8806 fresh '
+      'from board.json, existing wan section, uci override, LuCI sections, B3000, '
+      'even split), '
       'Wi-Fi offload on with firmware memory mode 1, AN8855 picks dsa')

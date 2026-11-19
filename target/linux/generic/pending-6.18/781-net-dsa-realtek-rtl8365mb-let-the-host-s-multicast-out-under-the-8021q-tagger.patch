@@ -30,7 +30,7 @@ Signed-off-by: Stanislaw Pal <kuncy7@gmail.com>
 ---
 --- a/drivers/net/dsa/realtek/rtl8365mb_main.c
 +++ b/drivers/net/dsa/realtek/rtl8365mb_main.c
-@@ -4181,15 +4181,59 @@
+@@ -4320,15 +4320,59 @@ static int rtl8365mb_port_fdb_del(struct
  				    rtl8365mb_db_vid(ds->priv, db, vid), db);
  }
  
@@ -91,7 +91,7 @@ Signed-off-by: Stanislaw Pal <kuncy7@gmail.com>
  }
  
  static int rtl8365mb_port_mdb_del(struct dsa_switch *ds, int port,
-@@ -4197,9 +4241,14 @@
+@@ -4336,9 +4380,14 @@ static int rtl8365mb_port_mdb_del(struct
  				  struct dsa_db db)
  {
  	struct switchdev_obj_port_mdb m = *mdb;

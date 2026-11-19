@@ -2,13 +2,13 @@ include $(TOPDIR)/rules.mk
 include $(INCLUDE_DIR)/version.mk
 
 PKG_NAME:=ipq-wifi
-PKG_RELEASE:=2
+PKG_RELEASE:=1
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL=$(PROJECT_GIT)/project/firmware/qca-wireless.git
-PKG_SOURCE_DATE:=2026-10-15
-PKG_SOURCE_VERSION:=5c5244c0b4fcd86738dfbf7a83d978b4ded574ef
-PKG_MIRROR_HASH:=6435f083103a3af794a381f586d6e40f35fcbb5b7ee344788b1bb5e08056b9d4
+PKG_SOURCE_DATE:=2026-11-16
+PKG_SOURCE_VERSION:=c832ed2cfbd42350bc2f683175952d341f737ec0
+PKG_MIRROR_HASH:=46756b986f0182a4b317eca478c3fa3733dc585f6a56c4f99704944436360509
 PKG_FLAGS:=nonshared
 
 include $(INCLUDE_DIR)/package.mk
@@ -40,6 +40,10 @@ ALLWIFIBOARDS:= \
 	alfa-network_ap120c-ax \
 	aliyun_ap8220 \
 	arcadyan_aw1000 \
+	aruba_ap-303 \
+	aruba_ap-303h \
+	aruba_ap-325 \
+	aruba_ap-365 \
 	askey_sbe1v1k \
 	asus_rt-ax89x \
 	avm_fritzbox-4050 \
@@ -57,6 +61,12 @@ ALLWIFIBOARDS:= \
 	glinet_gl-axt1800 \
 	glinet_gl-b3000 \
 	glinet_gl-x2000 \
+	h3c_magic-bx54-eu \
+	h3c_magic-nx30 \
+	h3c_magic-nx54 \
+	h3c_magic-rc3000-v1 \
+	h3c_magic-rc3000-v2 \
+	h3c_magic-rc3000-v3 \
 	huawei_ap4050dn \
 	ignitenet_ss-w2-ac2600 \
 	iodata_wn-dax3000gr \
@@ -95,19 +105,24 @@ ALLWIFIBOARDS:= \
 	netgear_wax610y \
 	netgear_wax620 \
 	netgear_wax630 \
+	netgear_wax630e \
 	prpl_haze \
 	qihoo_360v6 \
 	qnap_301w \
 	redmi_ax6 \
+	ruijie_rg-ma3063 \
 	skspruce_wia3300-20 \
 	spectrum_sax1v1k \
 	tcl_linkhub-hh500v \
+	tplink_archer-ax53-v2 \
 	tplink_archer-ax55-v1 \
+	tplink_archer-ax58-v2 \
 	tplink_archer-c59-v1 \
 	tplink_archer-c6-v2 \
 	tplink_archer-c60-v1 \
 	tplink_archer-c60-v2 \
 	tplink_archer-c60-v3 \
+	tplink_deco-m5 \
 	tplink_deco-x80-5g \
 	tplink_eap225-wall-v2 \
 	tplink_eap610-outdoor \
@@ -119,16 +134,21 @@ ALLWIFIBOARDS:= \
 	tplink_eap650-outdoor-v1 \
 	tplink_eap660hd-v1 \
 	tplink_ex511-v2 \
+	tplink_mx515v-v1 \
 	tplink_re700x \
 	tplink_tl-wa1201-v2 \
+	ubnt_unifi-6-pro \
 	ubnt_utr \
 	wallys_dr40x9 \
 	wallys_dr5018s \
+	wallys_dr6018s \
 	xiaomi_aiot-ac2350 \
 	xiaomi_ax3600 \
 	xiaomi_ax6000 \
+	xiaomi_cr8806 \
 	xiaomi_ax9000 \
 	xiaomi_mi-router-ax3000t-v2 \
+	xiaomi_ra80 \
 	xiaomi_redmi-ax5400 \
 	xunison_exigo-hub-d50-5g \
 	yuncore_ax830 \
@@ -142,6 +162,7 @@ ALLWIFIBOARDS:= \
 	zte_mf286c \
 	zte_mf287 \
 	zte_mf287plus \
+	zte_t5400 \
 	zyxel_nbg7815 \
 	zyxel_nwa110ax \
 	zyxel_nwa210ax \
@@ -255,6 +276,10 @@ $(eval $(call generate-ipq-wifi-package,8devices_mango,8devices Mango))
 $(eval $(call generate-ipq-wifi-package,alfa-network_ap120c-ax,ALFA Network AP120C-AX))
 $(eval $(call generate-ipq-wifi-package,aliyun_ap8220,Aliyun AP8220))
 $(eval $(call generate-ipq-wifi-package,arcadyan_aw1000,Arcadyan AW1000))
+$(eval $(call generate-ipq-wifi-package,aruba_ap-303,Aruba AP-303))
+$(eval $(call generate-ipq-wifi-package,aruba_ap-303h,Aruba AP-303H))
+$(eval $(call generate-ipq-wifi-package,aruba_ap-325,Aruba AP-325))
+$(eval $(call generate-ipq-wifi-package,aruba_ap-365,Aruba AP-365))
 $(eval $(call generate-ipq-wifi-package,askey_sbe1v1k,Askey SBE1V1K))
 $(eval $(call generate-ipq-wifi-package,asus_rt-ax89x,Asus RT-AX89X))
 $(eval $(call generate-ipq-wifi-package,avm_fritzbox-4050,AVM FRITZ!Box 4050))
@@ -272,6 +297,12 @@ $(eval $(call generate-ipq-wifi-package,glinet_gl-ax1800,GL.iNet GL-AX1800))
 $(eval $(call generate-ipq-wifi-package,glinet_gl-axt1800,GL.iNet GL-AXT1800))
 $(eval $(call generate-ipq-wifi-package,glinet_gl-b3000,GL.iNet GL-B3000))
 $(eval $(call generate-ipq-wifi-package,glinet_gl-x2000,GL.iNet GL-X2000))
+$(eval $(call generate-ipq-wifi-package,h3c_magic-bx54-eu,H3C Magic BX54 EU))
+$(eval $(call generate-ipq-wifi-package,h3c_magic-nx30,H3C Magic NX30))
+$(eval $(call generate-ipq-wifi-package,h3c_magic-nx54,H3C Magic NX54))
+$(eval $(call generate-ipq-wifi-package,h3c_magic-rc3000-v1,H3C Magic RC3000 v1))
+$(eval $(call generate-ipq-wifi-package,h3c_magic-rc3000-v2,H3C Magic RC3000 v2))
+$(eval $(call generate-ipq-wifi-package,h3c_magic-rc3000-v3,H3C Magic RC3000 v3))
 $(eval $(call generate-ipq-wifi-package,huawei_ap4050dn,Huawei AP4050DN))
 $(eval $(call generate-ipq-wifi-package,ignitenet_ss-w2-ac2600,Ignitenet SS-W2-AC2600))
 $(eval $(call generate-ipq-wifi-package,iodata_wn-dax3000gr,I-O DATA WN-DAX3000GR))
@@ -310,19 +341,24 @@ $(eval $(call generate-ipq-wifi-package,netgear_wax610,Netgear WAX610))
 $(eval $(call generate-ipq-wifi-package,netgear_wax610y,Netgear WAX610Y))
 $(eval $(call generate-ipq-wifi-package,netgear_wax620,Netgear WAX620))
 $(eval $(call generate-ipq-wifi-package,netgear_wax630,Netgear WAX630))
+$(eval $(call generate-ipq-wifi-package,netgear_wax630e,Netgear WAX630E))
 $(eval $(call generate-ipq-wifi-package,prpl_haze,prpl Haze))
 $(eval $(call generate-ipq-wifi-package,qihoo_360v6,Qihoo 360V6))
 $(eval $(call generate-ipq-wifi-package,qnap_301w,QNAP 301w))
 $(eval $(call generate-ipq-wifi-package,redmi_ax6,Redmi AX6))
+$(eval $(call generate-ipq-wifi-package,ruijie_rg-ma3063,Ruijie RG-MA3063))
 $(eval $(call generate-ipq-wifi-package,skspruce_wia3300-20,SKSpruce WIA3300-20))
 $(eval $(call generate-ipq-wifi-package,spectrum_sax1v1k,Spectrum SAX1V1K))
 $(eval $(call generate-ipq-wifi-package,tcl_linkhub-hh500v,TCL LINKHUB HH500V))
+$(eval $(call generate-ipq-wifi-package,tplink_archer-ax53-v2,TP-Link Archer AX53 v2))
 $(eval $(call generate-ipq-wifi-package,tplink_archer-ax55-v1,TP-Link Archer AX55 v1))
+$(eval $(call generate-ipq-wifi-package,tplink_archer-ax58-v2,TP-Link Archer AX58 v2))
 $(eval $(call generate-ipq-wifi-package,tplink_archer-c59-v1,TP-Link Archer C59 V1))
 $(eval $(call generate-ipq-wifi-package,tplink_archer-c6-v2,TP-Link Archer C6 V2))
 $(eval $(call generate-ipq-wifi-package,tplink_archer-c60-v1,TP-Link Archer C60 V1))
 $(eval $(call generate-ipq-wifi-package,tplink_archer-c60-v2,TP-Link Archer C60 V2))
 $(eval $(call generate-ipq-wifi-package,tplink_archer-c60-v3,TP-Link Archer C60 V3))
+$(eval $(call generate-ipq-wifi-package,tplink_deco-m5,TP-Link Deco M5))
 $(eval $(call generate-ipq-wifi-package,tplink_deco-x80-5g,TP-Link Deco X80-5G))
 $(eval $(call generate-ipq-wifi-package,tplink_eap225-wall-v2,TP-Link EAP225-Wall v2))
 $(eval $(call generate-ipq-wifi-package,tplink_eap610-outdoor,TPLink EAP610-Outdoor))
@@ -334,16 +370,21 @@ $(eval $(call generate-ipq-wifi-package,tplink_eap625-outdoor-hd-v1,TP-Link EAP6
 $(eval $(call generate-ipq-wifi-package,tplink_eap650-outdoor-v1,TP-Link EAP650-Outdoor v1))
 $(eval $(call generate-ipq-wifi-package,tplink_eap660hd-v1,TP-Link EAP660 HD v1))
 $(eval $(call generate-ipq-wifi-package,tplink_ex511-v2,TP-Link EX511 v2))
+$(eval $(call generate-ipq-wifi-package,tplink_mx515v-v1,TP-Link MX515v))
 $(eval $(call generate-ipq-wifi-package,tplink_re700x,TP-Link RE700X))
 $(eval $(call generate-ipq-wifi-package,tplink_tl-wa1201-v2,TP-Link TL-WA1201 V2))
+$(eval $(call generate-ipq-wifi-package,ubnt_unifi-6-pro,Ubiquiti UniFi 6 Pro))
 $(eval $(call generate-ipq-wifi-package,ubnt_utr,Ubiquiti UniFi Travel Router))
 $(eval $(call generate-ipq-wifi-package,wallys_dr40x9,Wallys DR40X9))
 $(eval $(call generate-ipq-wifi-package,wallys_dr5018s,Wallys DR5018S))
+$(eval $(call generate-ipq-wifi-package,wallys_dr6018s,Wallys DR6018S))
 $(eval $(call generate-ipq-wifi-package,xiaomi_aiot-ac2350,Xiaomi AIoT AC2350))
 $(eval $(call generate-ipq-wifi-package,xiaomi_ax3600,Xiaomi AX3600))
 $(eval $(call generate-ipq-wifi-package,xiaomi_ax6000,Xiaomi AX6000))
+$(eval $(call generate-ipq-wifi-package,xiaomi_cr8806,Xiaomi CR8806))
 $(eval $(call generate-ipq-wifi-package,xiaomi_ax9000,Xiaomi AX9000))
 $(eval $(call generate-ipq-wifi-package,xiaomi_mi-router-ax3000t-v2,Xiaomi Mi Router AX3000T v2))
+$(eval $(call generate-ipq-wifi-package,xiaomi_ra80,Xiaomi AX3000 (RA80)))
 $(eval $(call generate-ipq-wifi-package,xiaomi_redmi-ax5400,Xiaomi Redmi AX5400))
 $(eval $(call generate-ipq-wifi-package,xunison_exigo-hub-d50-5g,Xunison Exigo Hub D50 5G))
 $(eval $(call generate-ipq-wifi-package,yuncore_ax830,Yuncore AX830))
@@ -357,6 +398,7 @@ $(eval $(call generate-ipq-wifi-package,zte_mf286ar,ZTE MF286A/R))
 $(eval $(call generate-ipq-wifi-package,zte_mf286c,ZTE MF286C))
 $(eval $(call generate-ipq-wifi-package,zte_mf287,ZTE MF287))
 $(eval $(call generate-ipq-wifi-package,zte_mf287plus,ZTE MF287Plus))
+$(eval $(call generate-ipq-wifi-package,zte_t5400,ZTE T5400))
 $(eval $(call generate-ipq-wifi-package,zyxel_nbg7815,Zyxel NBG7815))
 $(eval $(call generate-ipq-wifi-package,zyxel_nwa110ax,Zyxel NWA110AX))
 $(eval $(call generate-ipq-wifi-package,zyxel_nwa210ax,Zyxel NWA210AX))

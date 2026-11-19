@@ -278,6 +278,76 @@ check 'mesh: a real vdev is reported as offloaded' \
 check 'mesh: a real vdev says so in the text report' \
 	1 "$(run | grep -c 'mesh offloaded')"
 
+# ---- wifili: per-radio counters of the firmware Wi-Fi data path ------------
+# The stats file comes from qca-nss-drv, which lives in the feed, not this
+# tree, so its layout is copied here from an IPQ5018 + QCN9000 board: a banner
+# per SoC, a banner per PDEV, counters as "\t<name> = <value> special". The
+# neighbouring tx_enqueue/tx_dequeue counters are given values of their own so
+# a parser that reads the wrong line fails, and PDEV 1 is all zeros, which is
+# how the driver prints a PDEV with no radio behind it. The QCN6122 carries
+# only an offloaded 802.11s link, as on an AX55 satellite: its frames leave the
+# REO ring for the mesh node, so rx_deliverd stays 0 while reo_reaped counts.
+
+wifili_banner() { printf '\n%s\n<<<<<<<<<<<<<<< %s >>>>>>>>>>>>>>>\n%s\n\n' \
+	'________________' "$1" '________________'; }
+{
+	wifili_banner 'INTERNAL: IPQ5018'
+	wifili_banner 'PDEV 0'
+	printf '#txrx\n\n'
+	printf '\twifili[0]_rx_deliverd                   = 16550           special\n'
+	printf '\twifili[0]_tx_enqueue                    = 33601           special\n'
+	printf '\twifili[0]_tx_dequeue                    = 33602           special\n'
+	printf '\twifili[0]_tx_sent_count                 = 33603           special\n'
+	printf '\twifili[0]_reo_reaped         = 16552           special\n'
+	wifili_banner 'PDEV 1'
+	printf '#txrx\n\n'
+	printf '\twifili[0]_rx_deliverd                   = 0               special\n'
+	printf '\twifili[0]_tx_sent_count                 = 0               special\n'
+	wifili_banner 'ATTACH 0: QCN9000'
+	wifili_banner 'PDEV 0'
+	printf '#txrx\n\n'
+	printf '\twifili[0]_rx_deliverd                   = 177118          special\n'
+	printf '\twifili[0]_tx_enqueue                    = 2022057         special\n'
+	printf '\twifili[0]_tx_sent_count                 = 2022064         special\n'
+	printf '\twifili[0]_reo_reaped         = 177120          special\n'
+	wifili_banner 'ATTACH 1: QCN6122'
+	wifili_banner 'PDEV 0'
+	printf '#txrx\n\n'
+	printf '\twifili[0]_rx_deliverd                   = 0               special\n'
+	printf '\twifili[0]_tx_sent_count                 = 416957          special\n'
+	printf '\twifili[0]_reo_reaped         = 580775          special\n'
+} > "$drv/wifili"
+
+wifili_row() { run | sed -n "s|^    \\($1\\) *\\([0-9]*\\) *\\([0-9]*\\) *\\([0-9]*\\)\$|\\1 \\2 \\3 \\4|p"; }
+check 'wifili: one row per radio that carried traffic' \
+	3 "$(run | grep -c -E '^    (IPQ5018|QCN9000|QCN6122)/[0-9]')"
+check 'wifili: the built-in radio reads tx_sent_count, reo_reaped and rx_deliverd' \
+	'IPQ5018/0 33603 16552 16550' "$(wifili_row IPQ5018/0)"
+check 'wifili: the PCIe radio is named after its chip' \
+	'QCN9000/0 2022064 177120 177118' "$(wifili_row QCN9000/0)"
+check 'wifili: a mesh-only radio shows its rx in the REO column' \
+	'QCN6122/0 416957 580775 0' "$(wifili_row QCN6122/0)"
+check 'wifili: the JSON carries the same counters' \
+	'{"radio":"QCN9000/0","tx_sent":2022064,"rx_delivered":177118,"rx_reaped":177120}' \
+	"$(run -j | tr -d '\n' | grep -o '{"radio":"QCN9000/0"[^}]*}')"
+links="$root/sys/kernel/debug/ath11k/ahb-c000000.wifi/dbg_infra/links"
+check 'wifili: with the mesh offloaded the table says where mesh rx goes' \
+	1 "$(run | grep -c 'mesh frames go from REO to the mesh node')"
+mv "$links" "$links.off"
+check 'wifili: without an offloaded mesh there is no such note' \
+	0 "$(run | grep -c 'mesh frames go from REO')"
+mv "$links.off" "$links"
+
+echo 0 > "$root/sys/module/ath11k/parameters/nss_offload"
+check 'wifili: host mode shows no firmware Wi-Fi counters' \
+	0 "$(run | grep -c 'firmware Wi-Fi data path')"
+check 'wifili: and the JSON list is empty in host mode' \
+	1 "$(run -j | tr -d '\n' | grep -c '"wifili":\[\]')"
+echo 1 > "$root/sys/module/ath11k/parameters/nss_offload"
+rm -f "$drv/wifili"
+check 'wifili: no stats file, no table' \
+	0 "$(run | grep -c 'firmware Wi-Fi data path')"
+
 # ---- ipq50xx: the qca-dwmac-nss glue and the DSA port nodes ----------------
 #
 # Same report, other glue. The port and counter lines are rebuilt from the

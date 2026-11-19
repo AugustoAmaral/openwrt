@@ -12,13 +12,21 @@ ipq50xx_setup_interfaces()
 	iodata,wn-dax3000gr|\
 	linksys,mr2000|\
 	linksys,mr5500|\
+	tplink,archer-ax53-v2|\
 	tplink,archer-ax55-v1|\
+	tplink,archer-ax58-v2|\
 	tplink,ex511-v2|\
 	zyxel,scr50axe)
 		ucidef_set_interfaces_lan_wan "lan1 lan2 lan3 lan4" "wan"
 		;;
+	tplink,mx515v-v1)
+		ucidef_set_interfaces_lan_wan "lan1 lan2" "wan"
+		;;
 	glinet,gl-b3000)
 		ucidef_set_interfaces_lan_wan "lan1 lan2" "wan"
+		;;
+	ruijie,rg-ma3063)
+		ucidef_set_interfaces_lan_wan "lan2 lan3 lan4" "wan"
 		;;
 	glinet,gl-x2000)
 		ucidef_set_interfaces_lan_wan "lan" "wan"
@@ -26,6 +34,12 @@ ipq50xx_setup_interfaces()
 	avm,fritzbox-4050|\
 	cmcc,mr3000d-ci|\
 	cmcc,rax3000q|\
+	h3c,magic-bx54-eu|\
+	h3c,magic-nx30|\
+	h3c,magic-nx54|\
+	h3c,magic-rc3000-v1|\
+	h3c,magic-rc3000-v2|\
+	h3c,magic-rc3000-v3|\
 	linksys,mx2000|\
 	linksys,mx5500|\
 	linksys,spnmx56|\
@@ -51,12 +65,28 @@ ipq50xx_setup_interfaces()
 		ucidef_set_network_device_conduit "lan3" "eth1"
 		ucidef_set_network_device_conduit "wan" "eth0"
 		;;
+	xiaomi,cr8806|\
+	xiaomi,ra80|\
+	xiaomi,redmi-ax3000-ubootmod)
+		ucidef_set_interfaces_lan_wan "lan1 lan2 lan3" "wan"
+		ucidef_set_network_device_conduit "lan1" "eth1"
+		ucidef_set_network_device_conduit "lan2" "eth1"
+		ucidef_set_network_device_conduit "lan3" "eth1"
+		ucidef_set_network_device_conduit "wan" "eth0"
+		;;
 	xunison,exigo-hub-d50-5g)
 		ucidef_set_interfaces_lan_wan "lan1 lan2 lan3" "wan"
 		;;
+	netgear,wax630e)
+		ucidef_set_interface_lan "lan1 lan2" "dhcp"
+		;;
 	tplink,eap650-outdoor-v1|\
-	tplink,re700x)
+	tplink,re700x|\
+	ubnt,unifi-6-pro)
 		ucidef_set_interface_lan "lan" "dhcp"
+		;;
+	zte,t5400)
+		ucidef_set_interfaces_lan_wan "lan1 lan2 lan3" "eth0"
 		;;
 	esac
 }
@@ -77,8 +107,23 @@ ipq50xx_setup_macs()
 		[ -n "$lan_mac" ] && ucidef_set_network_device_mac "eth1" "$lan_mac"
 		[ -n "$lan_mac" ] && ucidef_set_label_macaddr "$lan_mac"
 		;;
+	h3c,magic-bx54-eu|\
+	h3c,magic-nx30|\
+	h3c,magic-nx54|\
+	h3c,magic-rc3000-v1|\
+	h3c,magic-rc3000-v2|\
+	h3c,magic-rc3000-v3)
+		label_mac=$(mtd_get_mac_ascii 0:appsblenv ethaddr)
+		[ -n "$label_mac" ] || return
+		ucidef_set_interface_macaddr "wan" "$label_mac"
+		ucidef_set_interface_macaddr "lan" "$(macaddr_add "$label_mac" 1)"
+		ucidef_set_network_device_mac "eth1" "$(macaddr_add "$label_mac" 1)"
+		ucidef_set_label_macaddr "$label_mac"
+		;;
 	mercusys,mr80x-v2|\
-	tplink,archer-ax55-v1)
+	tplink,archer-ax53-v2|\
+	tplink,archer-ax55-v1|\
+	tplink,archer-ax58-v2)
 		# factory MAC is 6 raw bytes in tp_data/default-mac, mounted
 		# read-only during preinit (see lib/preinit/09_mount_tp_data)
 		label_mac=$(get_mac_binary "/tmp/tp_data/default-mac" 0)
@@ -87,6 +132,18 @@ ipq50xx_setup_macs()
 		ucidef_set_interface_macaddr "wan" "$(macaddr_add "$label_mac" 1)"
 		ucidef_set_label_macaddr "$label_mac"
 		# gmac1 has no nvmem MAC source, so stmmac would randomise the
+		# DSA conduit's address on every boot - pin it to the label MAC
+		ucidef_set_network_device_mac "eth0" "$label_mac"
+		;;
+	tplink,mx515v-v1)
+		# factory MAC is 6 raw bytes in misc_ro/0x0434F100, mounted
+		# read-only during preinit (see lib/preinit/09_mount_tp_data)
+		label_mac=$(get_mac_binary "/tmp/tp_data/0x0434F100" 0)
+		[ -n "$label_mac" ] || return
+		ucidef_set_interface_macaddr "lan" "$label_mac"
+		ucidef_set_interface_macaddr "wan" "$(macaddr_add "$label_mac" 1)"
+		ucidef_set_label_macaddr "$label_mac"
+		# gmac0 has no nvmem MAC source, so stmmac would randomise the
 		# DSA conduit's address on every boot - pin it to the label MAC
 		ucidef_set_network_device_mac "eth0" "$label_mac"
 		;;

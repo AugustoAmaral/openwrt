@@ -82,6 +82,31 @@ set_n2h_queue_limit() {
   sysctl -w dev.nss.n2hcfg.n2h_queue_limit_core1="$n2h_queue_limit_core1" > /dev/null 2>&1
 }
 
+# The per-CPU free page lists on a 256 MB board. Linux sizes each CPU's list
+# from the zone's low watermark: with OpenWrt's min_free_kbytes=16384 that is
+# 2560 pages, 10 MiB per CPU, and since 6.16 (c544a952ba61) the early flush
+# that used to trim them no longer triggers on a board this small. Pages
+# parked there are free but count neither in MemFree nor in MemAvailable, and
+# kswapd evicts page cache to keep MemFree above the high watermark while they
+# sit there. Measured on a Xiaomi AX3000T v2 (256 MiB, IPQ5018 + QCN6122), two
+# boots each way at the same throughput: 7-19 MB on the lists, kswapd stealing
+# 700-1100 pages and page cache read back without a cap; about 1 MB and
+# neither with 100, which also left 5 MB more available under Wi-Fi load and
+# 10-16 MB more at idle and after a driver reload. 100 caps each list at
+# managed_pages / 100 / nr_cpus (218 pages there).
+#
+# Only while vm.percpu_pagelist_high_fraction is the kernel's default (0), so a
+# value from sysctl.d stays. The option pcp_high_fraction in /etc/config/pbuf
+# overrides 100; 0 leaves the kernel's default.
+set_pcp_high_fraction() {
+  local pcp_high_fraction
+
+  config_get pcp_high_fraction opt pcp_high_fraction 100
+  [ "$pcp_high_fraction" -gt 0 ] 2> /dev/null || return 0
+  [ "$(sysctl -n -e vm.percpu_pagelist_high_fraction)" = 0 ] || return 0
+  sysctl -w vm.percpu_pagelist_high_fraction="$pcp_high_fraction" > /dev/null 2>&1
+}
+
 apply_nss_config() {
   local auto_scale num_cpus
   local hash_bitmap
@@ -205,6 +230,7 @@ apply_nss_config() {
       else
         extra_pbuf_core0=3100000 n2h_high_water_core0=30258 n2h_wifi_pool_buf=4096 apply_sysctl
       fi
+      set_pcp_high_fraction
       ;;
   esac
 }
@@ -252,9 +278,38 @@ set_scaling_governor() {
   fi
 }
 
+# A ceiling for the CPU clock, in kHz, written to every cpufreq policy:
+# 1008000 keeps an IPQ5018 or IPQ5000 at its rated clock, off the 1296 MHz
+# OPP, for a chip that does not hold 1296 MHz at the fixed 1.1 V
+# (kuncy7/openwrt-nss-edma#78). Unset, the governor uses every OPP.
+set_scaling_max_freq() {
+
+  local max_freq policy
+  config_load pbuf
+  config_get max_freq opt scaling_max_freq
+
+  [ -n "$max_freq" ] || return 0
+  case "$max_freq" in
+    *[!0-9]*)
+      logger -t $NAME -p user.error "scaling_max_freq '$max_freq' is not a number in kHz"
+      return 0
+      ;;
+  esac
+
+  for policy in /sys/devices/system/cpu/cpufreq/policy*; do
+    [ -w "$policy/scaling_max_freq" ] || continue
+    if echo "$max_freq" > "$policy/scaling_max_freq" 2> /dev/null; then
+      logger -t $NAME -p user.notice "CPU clock capped at $(cat "$policy/scaling_max_freq") kHz (${policy##*/})"
+    else
+      logger -t $NAME -p user.error "could not cap ${policy##*/} at $max_freq kHz"
+    fi
+  done
+}
+
 start() {
 
   set_scaling_governor
+  set_scaling_max_freq
   set_stats_disable
   apply_nss_config
 

@@ -40,7 +40,7 @@ The helper is taken from Julius Bairaktaris' openwrt-nss-edma
 
 --- a/drivers/net/wireless/ath/ath11k/nss.c
 +++ b/drivers/net/wireless/ath/ath11k/nss.c
-@@ -325,7 +325,10 @@ static void ath11k_nss_peer_mem_free(struct ath11k_base *ab, u32 peer_id)
+@@ -331,7 +331,10 @@ static void ath11k_nss_peer_mem_free(str
  	for (i = 0; i < ab->num_radios; i++) {
  		struct ath11k_pdev *pdev = &ab->pdevs[i];
  		ar = pdev->ar;
@@ -52,7 +52,7 @@ The helper is taken from Julius Bairaktaris' openwrt-nss-edma
  		if (!peer)
  			continue;
  
-@@ -2490,18 +2493,21 @@ int ath11k_nss_peer_create(struct ath11k *ar, struct ath11k_peer *peer)
+@@ -3988,18 +3991,21 @@ int ath11k_nss_peer_create(struct ath11k
  		   peer_msg->peer_mac_addr, peer_msg->vdev_id, peer_msg->peer_id,
  		   peer_msg->hw_ast_idx, peer_msg->tx_ast_hash);
  
@@ -78,14 +78,14 @@ The helper is taken from Julius Bairaktaris' openwrt-nss-edma
  	goto msg_free;
 --- a/drivers/net/wireless/ath/ath11k/nss.h
 +++ b/drivers/net/wireless/ath/ath11k/nss.h
-@@ -180,6 +180,7 @@ struct ath11k_nss_peer {
+@@ -188,6 +188,7 @@ struct ath11k_nss_peer {
  	struct ieee80211_vif *ext_vif;
  	struct peer_stats *nss_stats;
  	struct completion complete;
 +	bool create_failed;
  };
  
- /* Structure to hold the vif related info for nss offload support */
+ struct ath11k_nss_mpath_entry {
 --- a/drivers/net/wireless/ath/ath11k/peer.c
 +++ b/drivers/net/wireless/ath/ath11k/peer.c
 @@ -9,8 +9,8 @@
@@ -99,7 +99,7 @@ The helper is taken from Julius Bairaktaris' openwrt-nss-edma
  {
  	struct ath11k_peer *peer;
  
-@@ -487,8 +487,8 @@ void ath11k_peer_map_event(struct ath11k *ar, u8 vdev_id, u16 peer_id,
+@@ -487,8 +487,8 @@ void ath11k_peer_map_event(struct ath11k
  		ether_addr_copy(peer->addr, mac_addr);
  		list_add(&peer->list, &ar->peers);
  		wake_up(&ar->peer_mapping_wq);
@@ -110,7 +110,7 @@ The helper is taken from Julius Bairaktaris' openwrt-nss-edma
  	}
  
  	ath11k_dbg(ab, ATH11K_DBG_DP_HTT, "peer map vdev %d peer %pM id %d\n",
-@@ -530,7 +530,14 @@ void ath11k_peer_map_v2_event(struct ath11k *ar, u8 vdev_id, u16 peer_id,
+@@ -530,7 +530,14 @@ void ath11k_peer_map_v2_event(struct ath
  			if (ret) {
  				ath11k_warn(ab, "failed to do nss peer create: %d\n",
  					    ret);
@@ -126,7 +126,7 @@ The helper is taken from Julius Bairaktaris' openwrt-nss-edma
  			}
  		}
  		wake_up(&ar->peer_mapping_wq);
-@@ -545,14 +552,6 @@ void ath11k_peer_map_v2_event(struct ath11k *ar, u8 vdev_id, u16 peer_id,
+@@ -545,14 +552,6 @@ void ath11k_peer_map_v2_event(struct ath
  	ath11k_dbg(ab, ATH11K_DBG_DP_HTT, "htt peer map vdev %d peer %pM id %d is_wds %d\n",
  		   vdev_id, mac_addr, peer_id, is_wds);
  
@@ -141,7 +141,7 @@ The helper is taken from Julius Bairaktaris' openwrt-nss-edma
  exit:
  	spin_unlock_bh(&ab->base_lock);
  }
-@@ -916,6 +915,15 @@ int ath11k_peer_create(struct ath11k *ar, struct ath11k_vif *arvif,
+@@ -916,6 +915,15 @@ int ath11k_peer_create(struct ath11k *ar
  		goto cleanup;
  	}
  

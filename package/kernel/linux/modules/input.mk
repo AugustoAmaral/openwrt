@@ -70,6 +70,22 @@ endef
 
 $(eval $(call KernelPackage,hid-alps))
 
+define KernelPackage/hid-multitouch
+  SUBMENU:=$(INPUT_MODULES_MENU)
+  TITLE:=HID multitouch panel support
+  DEPENDS:=+kmod-hid
+  KCONFIG:=CONFIG_HID_MULTITOUCH
+  FILES:=$(LINUX_DIR)/drivers/hid/hid-multitouch.ko
+  AUTOLOAD:=$(call AutoProbe,hid-multitouch)
+endef
+
+define KernelPackage/hid-multitouch/description
+ Support for HID multitouch touchscreens and touchpads that report
+ more than one contact, on USB, I2C or Bluetooth
+endef
+
+$(eval $(call KernelPackage,hid-multitouch))
+
 define KernelPackage/input-adc-keys
   SUBMENU:=$(INPUT_MODULES_MENU)
   TITLE:=ADC Ladder Buttons support
@@ -265,7 +281,7 @@ $(eval $(call KernelPackage,input-touchscreen-edt-ft5x06))
 define KernelPackage/input-touchscreen-hynitron-cst816x
   SUBMENU:=$(INPUT_MODULES_MENU)
   TITLE:=Hynitron CST816X touchscreen
-  DEPENDS:=@!LINUX_6_12 +kmod-i2c-core +kmod-input-core
+  DEPENDS:=+kmod-i2c-core +kmod-input-core
   KCONFIG:= \
 	CONFIG_INPUT_TOUCHSCREEN=y \
 	CONFIG_TOUCHSCREEN_HYNITRON_CST816X
@@ -392,7 +408,7 @@ define KernelPackage/rc-core
 	CONFIG_RC_CORE
   FILES:=$(LINUX_DIR)/drivers/media/rc/rc-core.ko
   AUTOLOAD:=$(call AutoProbe,rc-core)
-  DEPENDS:=@!LINUX_6_12 +kmod-input-core
+  DEPENDS:=+kmod-input-core
 endef
 
 define KernelPackage/rc-core/description

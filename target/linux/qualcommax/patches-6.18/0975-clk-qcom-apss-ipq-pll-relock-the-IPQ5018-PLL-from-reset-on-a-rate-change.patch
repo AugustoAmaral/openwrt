@@ -1,0 +1,67 @@
+From: Stanislaw Pal <kuncy7@gmail.com>
+Subject: [PATCH] clk: qcom: apss-ipq-pll: relock the IPQ5018 PLL from reset on a rate change
+
+The IPQ5018 a53pll is driven with clk_alpha_pll_stromer_ops, whose
+set_rate writes the new L value and asks for a dynamic update. The
+hardware acknowledges it: PLL_UPDATE clears, the lock detect stays set
+and L reads back the new value, so the clock framework reports the new
+rate. The core keeps running at the old one, though. Measured on a
+GL-B3000 with a chain of dependent adds: after 864 -> 1008 MHz, L reads
+0x2a and the loop still takes the 864 MHz time. Only the first change
+after boot works, because the CPU is on GPLL0 then and the PLL is
+brought up from reset with the new L already written.
+
+Drive the IPQ5018 PLL with the Stromer Plus ops instead. They use the
+same register layout, and their set_rate takes the PLL through reset,
+programs L and waits for the lock, which is how the PLL takes the first
+rate. The CPU must not run from the PLL meanwhile; the apss-ipq6018
+notifier parks it on GPLL0 (0973).
+
+ipq_pll_stromer was only used by IPQ5018, so drop it.
+
+Signed-off-by: Stanislaw Pal <kuncy7@gmail.com>
+---
+--- a/drivers/clk/qcom/apss-ipq-pll.c
++++ b/drivers/clk/qcom/apss-ipq-pll.c
+@@ -26,29 +26,13 @@
+ 	},
+ };
+ 
+-static struct clk_alpha_pll ipq_pll_stromer = {
+-	.offset = 0x0,
+-	.regs = clk_alpha_pll_regs[CLK_ALPHA_PLL_TYPE_STROMER],
+-	.flags = SUPPORTS_DYNAMIC_UPDATE,
+-	.clkr = {
+-		.enable_reg = 0x0,
+-		.enable_mask = BIT(0),
+-		.hw.init = &(const struct clk_init_data) {
+-			.name = "a53pll",
+-			.parent_data = &(const struct clk_parent_data) {
+-				.fw_name = "xo",
+-			},
+-			.num_parents = 1,
+-			.ops = &clk_alpha_pll_stromer_ops,
+-		},
+-	},
+-};
+-
+ static struct clk_alpha_pll ipq_pll_stromer_plus = {
+ 	.offset = 0x0,
+ 	/*
+ 	 * The register offsets of the Stromer Plus PLL used in IPQ5332
+-	 * are the same as the Stromer PLL's offsets.
++	 * are the same as the Stromer PLL's offsets. The IPQ5018 Stromer
++	 * PLL is driven the same way: it accepts a dynamic update, but
++	 * keeps running at the old rate, so it is relocked from reset.
+ 	 */
+ 	.regs = clk_alpha_pll_regs[CLK_ALPHA_PLL_TYPE_STROMER],
+ 	.flags = SUPPORTS_DYNAMIC_UPDATE,
+@@ -136,7 +120,7 @@
+ 
+ static const struct apss_pll_data ipq5018_pll_data = {
+ 	.pll_type = CLK_ALPHA_PLL_TYPE_STROMER,
+-	.pll = &ipq_pll_stromer,
++	.pll = &ipq_pll_stromer_plus,
+ 	.pll_config = &ipq5018_pll_config,
+ };
+ 

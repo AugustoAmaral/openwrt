@@ -12,7 +12,12 @@ define KernelPackage/qca-ppe-nss
   CATEGORY:=Kernel modules
   SUBMENU:=Network Devices
   TITLE:=NSS data-plane glue for the qca_edma/qca_ppe stack
-  DEPENDS:=@(TARGET_qualcommax_ipq807x||TARGET_qualcommax_ipq60xx)
+  # The per-port data-plane hooks this claims took the port from the
+  # out-of-band tag, which main dropped for the in-band QCA header
+  # (b50530932b) along with the rest of the old qca_edma/qca_ppe. NSS on
+  # ipq807x and ipq60xx is not carried forward here; the last tree that
+  # has it is julius-archive/nss-edma-rework.
+  DEPENDS:=@BROKEN @(TARGET_qualcommax_ipq807x||TARGET_qualcommax_ipq60xx)
   FILES:=$(PKG_BUILD_DIR)/qca-ppe-nss.ko
 endef
 

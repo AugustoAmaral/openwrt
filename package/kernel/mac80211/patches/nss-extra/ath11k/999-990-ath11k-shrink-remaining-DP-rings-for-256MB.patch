@@ -5,10 +5,15 @@ ATH11K_MEM_PROFILE_256M exists in Kconfig but nothing in the driver
 tests it, so selecting it gives a board the 1G defaults. Make it mean
 "the 512M profile, plus smaller RXDMA rings": the build defines both
 symbols when 256M is selected (ath.mk), and this patch shrinks, under
-CPTCFG_ATH11K_MEM_PROFILE_256M only, the four rings the 512M profile
+CPTCFG_ATH11K_MEM_PROFILE_256M only, the three rings the 512M profile
 leaves at their 1G sizes: DP_RXDMA_BUF_RING_SIZE 4096 -> 512,
-DP_RXDMA_ERR_DST_RING_SIZE 1024 -> 128, DP_RXDMA_MONITOR_DESC_RING_SIZE
-4096 -> 128 and ATH11K_DP_RXDMA_REFILL_RING_SIZE 2048 -> 512.
+DP_RXDMA_ERR_DST_RING_SIZE 1024 -> 128 and
+DP_RXDMA_MONITOR_DESC_RING_SIZE 4096 -> 128.
+
+ATH11K_DP_RXDMA_REFILL_RING_SIZE stays at 2048: despite its name it is
+not a ring size but the rx_buf_size handed to the firmware in the HTT
+RX filter setup, for the data ring without NSS and for the monitor
+rings, and the host buffers behind it are DP_RX_BUFFER_SIZE (2048).
 
 The NSS Wi-Fi datapath sizes its RX descriptor pool from
 DP_RXDMA_BUF_RING_SIZE (WIFILI_RX_DESC_POOL_WEIGHT * ring size), so this
@@ -57,17 +62,3 @@ Signed-off-by: Gustavo Foletto Mora <gusfmora@gmail.com>
  
  #define DP_RX_RELEASE_RING_NUM	3
  
---- a/drivers/net/wireless/ath/ath11k/hw.h
-+++ b/drivers/net/wireless/ath/ath11k/hw.h
-@@ -22,7 +22,11 @@
- #define ATH11K_DP_RXDMA_MON_STATUS_RING_SIZE	512
- #define ATH11K_DP_RXDMA_MONITOR_BUF_RING_SIZE	128
- #define ATH11K_DP_RXDMA_MONITOR_DST_RING_SIZE	128
-+#ifdef CPTCFG_ATH11K_MEM_PROFILE_256M
-+#define ATH11K_DP_RXDMA_REFILL_RING_SIZE	512
-+#else
- #define ATH11K_DP_RXDMA_REFILL_RING_SIZE	2048
-+#endif
- /* 256b desc TLV + 4b(rounded) Pad + 30byte max nwifi header +
-  * 18byte mesh hdr + 8byte snap + 1500 eth payload
-  */

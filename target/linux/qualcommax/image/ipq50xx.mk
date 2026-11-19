@@ -1,5 +1,6 @@
 DTS_DIR := $(DTS_DIR)/qcom
 DEVICE_VARS += AVM_CONTAINER_CONFIG BOOT_SCRIPT MERCUSYS_SUPPORT_STRING
+DEVICE_VARS += H3C_FIT_CONFIGS
 
 define Build/fit-avm
 	$(call Build/fit-its,$(1))
@@ -22,6 +23,63 @@ define Build/avm-container
 		$@.its $@ $(AVM_CONTAINER_CONFIG) $(KERNEL_LOADADDR)
 	PATH=$(LINUX_DIR)/scripts/dtc:$(PATH) mkimage -f $@.its $@.new
 	@mv $@.new $@
+endef
+
+# H3C web upgrade image: a FIT whose only image is the UBI ("ubi-*"),
+# behind the header checked by the stock web interface.
+define Build/h3c-web-fit
+	echo '/dts-v1/; / { description = "OpenWrt"; #address-cells = <1>; \
+		images { ubi-openwrt { description = "OpenWrt UBI"; \
+		data = /incbin/("$@"); type = "firmware"; arch = "arm"; \
+		compression = "none"; hash@1 { algo = "crc32"; }; \
+		hash@2 { algo = "sha1"; }; }; }; \
+		configurations { default = "conf-1"; \
+		conf-1 { firmware = "ubi-openwrt"; }; }; };' > $@.its
+	PATH=$(LINUX_DIR)/scripts/dtc:$(PATH) mkimage -f $@.its $@.new
+	@mv $@.new $@
+endef
+
+define Build/h3c-web-header
+	$(STAGING_DIR_HOST)/bin/mkh3cqca -i $@ -o $@.new \
+		-v $(word 1,$(1)) -d $(word 2,$(1))
+	@mv $@.new $@
+endef
+
+# The stock H3C U-Boot boots the FIT configuration named after the SoC
+# machid (config@mp03.1, config@mp02.1 or config@mp03.1-c2) and stops at
+# its console when the image does not have it. Every Magic board runs the
+# same kernel, so each image carries the DTB of every route: an image
+# installed on another hardware version still boots with the DTB of the
+# board it runs on, and the matching sysupgrade image can be installed
+# from there without a serial console.
+define Build/h3c-fit
+	( \
+		printf '/dts-v1/;\n/ {\n\tdescription = "ARM64 OpenWrt FIT (Flattened Image Tree)";\n\t#address-cells = <1>;\n\timages {\n'; \
+		printf '\t\tkernel-1 {\n\t\t\tdescription = "ARM64 OpenWrt Linux-$(LINUX_VERSION)";\n\t\t\tdata = /incbin/("$@");\n\t\t\ttype = "kernel";\n\t\t\tarch = "arm64";\n\t\t\tos = "linux";\n\t\t\tcompression = "$(1)";\n\t\t\tload = <$(KERNEL_LOADADDR)>;\n\t\t\tentry = <$(KERNEL_LOADADDR)>;\n\t\t\thash-1 { algo = "crc32"; };\n\t\t\thash-2 { algo = "sha1"; };\n\t\t};\n'; \
+		$(foreach dts,$(sort $(foreach c,$(H3C_FIT_CONFIGS),$(word 2,$(subst =, ,$(c))))), \
+			printf '\t\tfdt-$(dts) {\n\t\t\tdescription = "ARM64 OpenWrt $(dts) device tree blob";\n\t\t\tdata = /incbin/("$(KDIR)/image-$(dts).dtb");\n\t\t\ttype = "flat_dt";\n\t\t\tarch = "arm64";\n\t\t\tcompression = "none";\n\t\t\thash-1 { algo = "crc32"; };\n\t\t\thash-2 { algo = "sha1"; };\n\t\t};\n';) \
+		printf '\t};\n\tconfigurations {\n\t\tdefault = "$(DEVICE_DTS_CONFIG)";\n'; \
+		$(foreach c,$(H3C_FIT_CONFIGS), \
+			printf '\t\t$(word 1,$(subst =, ,$(c))) {\n\t\t\tdescription = "OpenWrt $(word 2,$(subst =, ,$(c)))";\n\t\t\tkernel = "kernel-1";\n\t\t\tfdt = "fdt-$(word 2,$(subst =, ,$(c)))";\n\t\t};\n';) \
+		printf '\t};\n};\n'; \
+	) > $@.its
+	$(call Build/fit-image)
+endef
+
+define Device/h3c_magic-qsdk
+	$(call Device/FitImage)
+	$(call Device/UbiFit)
+	KERNEL = kernel-bin | libdeflate-gzip | h3c-fit gzip
+	H3C_FIT_CONFIGS = config@mp03.1=ipq5018-magic-rc3000-v2 \
+		config@mp02.1=ipq5018-magic-rc3000-v1 \
+		config@mp03.1-c2=ipq5018-magic-rc3000-v3
+	DEVICE_DTS += $$(foreach c,$$(H3C_FIT_CONFIGS),$$(word 2,$$(subst =, ,$$(c))))
+	DEVICE_VENDOR := H3C
+	SOC := ipq5018
+	BLOCKSIZE := 128k
+	PAGESIZE := 2048
+	IMAGE_SIZE := 40960k
+	NAND_SIZE := 128m
 endef
 
 define Build/mstc-header
@@ -213,6 +271,94 @@ define Device/glinet_gl-b3000
 endef
 TARGET_DEVICES += glinet_gl-b3000
 
+define Device/ruijie_rg-ma3063
+	$(call Device/FitImageLzma)
+	$(call Device/UbiFit)
+	DEVICE_VENDOR := Ruijie
+	DEVICE_MODEL := RG-MA3063
+	DEVICE_DTS_CONFIG := config@mp02.1
+	SOC := ipq5018
+	BLOCKSIZE := 128k
+	PAGESIZE := 2048
+	IMAGE_SIZE := 51200k
+	NAND_SIZE := 128m
+	DEVICE_PACKAGES := \
+		ath11k-firmware-ipq5018-qcn6122 \
+		ipq-wifi-ruijie_rg-ma3063
+endef
+TARGET_DEVICES += ruijie_rg-ma3063
+
+define Device/xiaomi_cr8806
+	$(call Device/FitImage)
+	$(call Device/UbiFit)
+	DEVICE_VENDOR := Xiaomi
+	DEVICE_MODEL := CR8806
+	DEVICE_VARIANT := M79
+	DEVICE_ALT0_VENDOR := Xiaomi
+	DEVICE_ALT0_MODEL := CR8808
+	DEVICE_ALT0_VARIANT := M79
+	DEVICE_ALT1_VENDOR := Xiaomi
+	DEVICE_ALT1_MODEL := CR8809
+	DEVICE_ALT1_VARIANT := M79
+	DEVICE_ALT2_VENDOR := Xiaomi
+	DEVICE_ALT2_MODEL := Redmi AX3000
+	DEVICE_ALT2_VARIANT := M81
+	DEVICE_DTS_CONFIG := config@mp02.1
+	SOC := ipq5018
+	BLOCKSIZE := 128k
+	PAGESIZE := 2048
+	NAND_SIZE := 128m
+	DEVICE_PACKAGES := \
+		ath11k-firmware-ipq5018-qcn6122 \
+		ipq-wifi-xiaomi_cr8806
+endef
+TARGET_DEVICES += xiaomi_cr8806
+
+define Device/xiaomi_ra80
+	$(call Device/FitImage)
+	$(call Device/UbiFit)
+	DEVICE_VENDOR := Xiaomi
+	DEVICE_MODEL := AX3000
+	DEVICE_VARIANT := RA80
+	DEVICE_DTS := ipq5018-xiaomi-ra80
+	DEVICE_DTS_CONFIG := config@mp02.1
+	SOC := ipq5018
+	BLOCKSIZE := 128k
+	PAGESIZE := 2048
+	NAND_SIZE := 128m
+	DEVICE_PACKAGES := \
+		ath11k-firmware-ipq5018-qcn6122 \
+		ipq-wifi-xiaomi_ra80
+endef
+TARGET_DEVICES += xiaomi_ra80
+
+define Device/xiaomi_redmi-ax3000-ubootmod
+	$(call Device/FitImage)
+	$(call Device/UbiFit)
+	DEVICE_VENDOR := Xiaomi
+	DEVICE_MODEL := Redmi AX3000
+	DEVICE_VARIANT := M81 (single rootfs layout)
+	DEVICE_ALT0_VENDOR := Xiaomi
+	DEVICE_ALT0_MODEL := CR8806
+	DEVICE_ALT0_VARIANT := M79 (single rootfs layout)
+	DEVICE_ALT1_VENDOR := Xiaomi
+	DEVICE_ALT1_MODEL := CR8808
+	DEVICE_ALT1_VARIANT := M79 (single rootfs layout)
+	DEVICE_ALT2_VENDOR := Xiaomi
+	DEVICE_ALT2_MODEL := CR8809
+	DEVICE_ALT2_VARIANT := M79 (single rootfs layout)
+	DEVICE_DTS := ipq5018-redmi-ax3000-ubootmod
+	DEVICE_DTS_CONFIG := config@mp02.1
+	SOC := ipq5018
+	BLOCKSIZE := 128k
+	PAGESIZE := 2048
+	NAND_SIZE := 128m
+	DEVICE_PACKAGES := \
+		ath11k-firmware-ipq5018-qcn6122 \
+		ipq-wifi-xiaomi_cr8806
+endef
+TARGET_DEVICES += xiaomi_redmi-ax3000-ubootmod
+
 define Device/glinet_gl-x2000
 	$(call Device/FitImage)
 	DEVICE_VENDOR := GL.iNet
@@ -238,6 +384,144 @@ define Device/glinet_gl-x2000
 		dumpimage
 endef
 TARGET_DEVICES += glinet_gl-x2000
+
+define Device/h3c_magic-bx54-eu
+	$(call Device/h3c_magic-qsdk)
+	DEVICE_MODEL := Magic BX54
+	DEVICE_VARIANT := EU
+	DEVICE_DTS_CONFIG := config@mp03.1-c2
+	H3C_FIT_CONFIGS = config@mp03.1-c2=ipq5018-magic-bx54-eu \
+		config@mp03.1=ipq5018-magic-bx54-eu
+	IMAGES += factory-bx54.bin
+	IMAGE/factory-bx54.bin := append-ubi | h3c-web-fit | \
+		h3c-web-header NX54-EUV100R999 D999
+	DEVICE_PACKAGES := ath11k-firmware-ipq5018-qcn6122 \
+		kmod-ath11k-pci \
+		ath11k-firmware-qcn9074 \
+		ipq-wifi-h3c_magic-bx54-eu
+endef
+TARGET_DEVICES += h3c_magic-bx54-eu
+
+define Device/h3c_magic-nx30
+	$(call Device/h3c_magic-qsdk)
+	DEVICE_MODEL := Magic NX30
+	DEVICE_DTS_CONFIG := config@mp02.1
+	H3C_FIT_CONFIGS = config@mp03.1=ipq5018-magic-rc3000-v2 \
+		config@mp02.1=ipq5018-magic-nx30 \
+		config@mp03.1-c2=ipq5018-magic-rc3000-v3
+	IMAGES += factory-nx30.bin
+	IMAGE/factory-nx30.bin := append-ubi | h3c-web-fit | \
+		h3c-web-header NX30V100R999 D999
+	DEVICE_PACKAGES := ath11k-firmware-ipq5018-qcn6122 \
+		ipq-wifi-h3c_magic-nx30 \
+		kmod-dsa-rtl8365mb
+endef
+TARGET_DEVICES += h3c_magic-nx30
+
+# NX54 boots config@mp03.1 like RC3000 v2, so its image carries only its own
+# DTB (the two boards cannot be told apart by machid). Slots are 45.25 MiB.
+define Device/h3c_magic-nx54
+	$(call Device/h3c_magic-qsdk)
+	DEVICE_MODEL := Magic NX54
+	DEVICE_DTS_CONFIG := config@mp03.1
+	H3C_FIT_CONFIGS = config@mp03.1=ipq5018-magic-nx54
+	IMAGE_SIZE := 46336k
+	IMAGES += factory-nx54.bin
+	IMAGE/factory-nx54.bin := append-ubi | h3c-web-fit | pad-extra 16k | \
+		h3c-web-header NX54V100R999 D999
+	DEVICE_PACKAGES := ath11k-firmware-ipq5018-qcn6122 \
+		ath11k-firmware-qcn9074 \
+		ipq-wifi-h3c_magic-nx54 \
+		kmod-ath11k-pci
+endef
+TARGET_DEVICES += h3c_magic-nx54
+
+define Device/h3c_magic-rc3000-v1
+	$(call Device/h3c_magic-qsdk)
+	DEVICE_MODEL := Magic RC3000
+	DEVICE_VARIANT := v1
+	DEVICE_ALT0_VENDOR := H3C
+	DEVICE_ALT0_MODEL := Magic RT3000
+	DEVICE_ALT0_VARIANT := v1
+	DEVICE_ALT1_VENDOR := H3C
+	DEVICE_ALT1_MODEL := Magic RW3010
+	DEVICE_ALT1_VARIANT := v1
+	DEVICE_DTS_CONFIG := config@mp02.1
+	IMAGES += factory-rc3000.bin
+	IMAGE/factory-rc3000.bin := append-ubi | h3c-web-fit | \
+		h3c-web-header RC3000V100R999 D999
+	IMAGES += factory-rt3000.bin
+	IMAGE/factory-rt3000.bin := append-ubi | h3c-web-fit | \
+		h3c-web-header RT3000V100R999 D999
+	IMAGES += factory-rw3000.bin
+	IMAGE/factory-rw3000.bin := append-ubi | h3c-web-fit | \
+		h3c-web-header RW3000V100R999 D999
+	IMAGES += factory-rx3000.bin
+	IMAGE/factory-rx3000.bin := append-ubi | h3c-web-fit | \
+		h3c-web-header NX30V100R999 D999
+	DEVICE_PACKAGES := ath11k-firmware-ipq5018-qcn6122 \
+		ipq-wifi-h3c_magic-rc3000-v1 \
+		kmod-dsa-rtl8365mb
+endef
+TARGET_DEVICES += h3c_magic-rc3000-v1
+
+define Device/h3c_magic-rc3000-v2
+	$(call Device/h3c_magic-qsdk)
+	DEVICE_MODEL := Magic RC3000
+	DEVICE_VARIANT := v2
+	DEVICE_ALT0_VENDOR := H3C
+	DEVICE_ALT0_MODEL := Magic RT3000
+	DEVICE_ALT0_VARIANT := v2
+	DEVICE_ALT1_VENDOR := H3C
+	DEVICE_ALT1_MODEL := Magic RW3000
+	DEVICE_ALT1_VARIANT := v2
+	DEVICE_DTS_CONFIG := config@mp03.1
+	IMAGES += factory-rc3000.bin
+	IMAGE/factory-rc3000.bin := append-ubi | h3c-web-fit | \
+		h3c-web-header RC3000V100R999 D999
+	IMAGES += factory-rt3000.bin
+	IMAGE/factory-rt3000.bin := append-ubi | h3c-web-fit | \
+		h3c-web-header RT3000V100R999 D999
+	IMAGES += factory-rw3000.bin
+	IMAGE/factory-rw3000.bin := append-ubi | h3c-web-fit | \
+		h3c-web-header RW3000V100R999 D999
+	IMAGES += factory-rx3000.bin
+	IMAGE/factory-rx3000.bin := append-ubi | h3c-web-fit | \
+		h3c-web-header NX30V100R999 D999
+	DEVICE_PACKAGES := ath11k-firmware-ipq5018-qcn6122 \
+		ipq-wifi-h3c_magic-rc3000-v2 \
+		kmod-dsa-rtl8365mb
+endef
+TARGET_DEVICES += h3c_magic-rc3000-v2
+
+define Device/h3c_magic-rc3000-v3
+	$(call Device/h3c_magic-qsdk)
+	DEVICE_MODEL := Magic RC3000
+	DEVICE_VARIANT := v3
+	DEVICE_ALT0_VENDOR := H3C
+	DEVICE_ALT0_MODEL := Magic RT3000
+	DEVICE_ALT0_VARIANT := v3
+	DEVICE_ALT1_VENDOR := H3C
+	DEVICE_ALT1_MODEL := Magic RX3000
+	DEVICE_ALT1_VARIANT := v3
+	DEVICE_DTS_CONFIG := config@mp03.1-c2
+	IMAGES += factory-rc3000.bin
+	IMAGE/factory-rc3000.bin := append-ubi | h3c-web-fit | \
+		h3c-web-header RC3000V100R999 D999
+	IMAGES += factory-rt3000.bin
+	IMAGE/factory-rt3000.bin := append-ubi | h3c-web-fit | \
+		h3c-web-header RT3000V100R999 D999
+	IMAGES += factory-rw3000.bin
+	IMAGE/factory-rw3000.bin := append-ubi | h3c-web-fit | \
+		h3c-web-header RW3000V100R999 D999
+	IMAGES += factory-rx3000.bin
+	IMAGE/factory-rx3000.bin := append-ubi | h3c-web-fit | \
+		h3c-web-header NX30V100R999 D999
+	DEVICE_PACKAGES := ath11k-firmware-ipq5018-qcn6122 \
+		ipq-wifi-h3c_magic-rc3000-v3 \
+		kmod-dsa-rtl8365mb
+endef
+TARGET_DEVICES += h3c_magic-rc3000-v3
 
 define Device/iodata_wn-dax3000gr
 	$(call Device/FitImageLzma)
@@ -375,6 +659,61 @@ define Device/mercusys_mr80x-v2
 endef
 TARGET_DEVICES += mercusys_mr80x-v2
 
+define Build/wax630e-netgear-tar
+	mkdir $@.tmp
+	mv $@ $@.tmp/nand-ipq5018-apps.img
+	md5sum $@.tmp/nand-ipq5018-apps.img | cut -c 1-32 > $@.tmp/nand-ipq5018-apps.md5sum
+	echo $(DEVICE_MODEL) > $@.tmp/metadata.txt
+	echo $(DEVICE_MODEL)"_V99.9.9.9" > $@.tmp/version
+	$(TAR) -C $@.tmp/ -cf $@ --sort=name --numeric-owner --owner=0 --group=0 --mode=go-w \
+		$(if $(SOURCE_DATE_EPOCH),--mtime="@$(SOURCE_DATE_EPOCH)") .
+	rm -rf $@.tmp
+endef
+
+define Device/netgear_wax630e
+	$(call Device/FitImage)
+	$(call Device/UbiFit)
+	DEVICE_VENDOR := Netgear
+	DEVICE_MODEL := WAX630E
+	DEVICE_DTS_CONFIG := config@mp03.3
+	SOC := ipq5018
+	BLOCKSIZE := 128k
+	PAGESIZE := 2048
+	NAND_SIZE := 256m
+	IMAGE_SIZE := 59392k
+	IMAGES += ui-factory.tar
+	IMAGE/ui-factory.tar := append-ubi | qsdk-ipq-factory-nand | pad-to 4096 | wax630e-netgear-tar
+	DEVICE_PACKAGES := ath11k-firmware-ipq5018-qcn6122 \
+		kmod-ath11k-pci ath11k-firmware-qcn9074 \
+		kmod-spi-gpio kmod-gpio-nxp-74hc164 \
+		ipq-wifi-netgear_wax630e
+endef
+TARGET_DEVICES += netgear_wax630e
+
+define Device/tplink_archer-ax53-v2
+	$(call Device/FitImageLzma)
+	$(call Device/UbiFit)
+	DEVICE_VENDOR := TP-Link
+	DEVICE_MODEL := Archer AX53
+	DEVICE_VARIANT := v2
+	DEVICE_DTS_CONFIG := config@mp03.3
+	SOC := ipq5018
+	BLOCKSIZE := 128k
+	PAGESIZE := 2048
+	IMAGE_SIZE := 43008k
+	NAND_SIZE := 128m
+	DEVICE_PACKAGES := ath11k-firmware-ipq5018-qcn6122 \
+		ipq-wifi-tplink_archer-ax53-v2 \
+		kmod-dsa-rtl8365mb
+ifneq ($(CONFIG_TARGET_ROOTFS_INITRAMFS),)
+ifeq ($(IB),)
+	ARTIFACTS := initramfs-factory.ubi
+	ARTIFACT/initramfs-factory.ubi := append-image-stage initramfs-uImage.itb | ubinize-kernel
+endif
+endif
+endef
+TARGET_DEVICES += tplink_archer-ax53-v2
+
 define Device/tplink_archer-ax55-v1
 	$(call Device/FitImageLzma)
 	$(call Device/UbiFit)
@@ -414,6 +753,30 @@ endif
 endif
 endef
 TARGET_DEVICES += tplink_archer-ax55-v1
+
+define Device/tplink_archer-ax58-v2
+	$(call Device/FitImageLzma)
+	$(call Device/UbiFit)
+	DEVICE_VENDOR := TP-Link
+	DEVICE_MODEL := Archer AX58
+	DEVICE_VARIANT := v2
+	DEVICE_DTS_CONFIG := config@mp03.3
+	SOC := ipq5018
+	BLOCKSIZE := 128k
+	PAGESIZE := 2048
+	IMAGE_SIZE := 43008k
+	NAND_SIZE := 128m
+	DEVICE_PACKAGES := ath11k-firmware-ipq5018-qcn6122 \
+		ipq-wifi-tplink_archer-ax58-v2 \
+		kmod-dsa-rtl8365mb
+ifneq ($(CONFIG_TARGET_ROOTFS_INITRAMFS),)
+ifeq ($(IB),)
+	ARTIFACTS := initramfs-factory.ubi
+	ARTIFACT/initramfs-factory.ubi := append-image-stage initramfs-uImage.itb | ubinize-kernel
+endif
+endif
+endef
+TARGET_DEVICES += tplink_archer-ax58-v2
 
 define Device/tplink_eap650-outdoor-v1
 	$(call Device/FitImage)
@@ -473,6 +836,48 @@ define Device/tplink_ex511-v2
 		kmod-dsa-rtl8365mb
 endef
 TARGET_DEVICES += tplink_ex511-v2
+
+define Device/tplink_mx515v-v1
+	$(call Device/FitImageLzma)
+	$(call Device/UbiFit)
+	DEVICE_VENDOR := TP-Link
+	DEVICE_MODEL := MX515v
+	DEVICE_VARIANT := v1
+	DEVICE_DTS_CONFIG := config@mp03.3
+	SOC := ipq5018
+	BLOCKSIZE := 128k
+	PAGESIZE := 2048
+	IMAGE_SIZE := 37248k
+	NAND_SIZE := 256m
+	DEVICE_PACKAGES := ath11k-firmware-ipq5018-qcn6122 \
+		ipq-wifi-tplink_mx515v-v1 \
+		kmod-dsa-rtl8365mb \
+		kmod-usb3
+ifneq ($(CONFIG_TARGET_ROOTFS_INITRAMFS),)
+ifeq ($(IB),)
+	ARTIFACTS := initramfs-factory.ubi
+	ARTIFACT/initramfs-factory.ubi := append-image-stage initramfs-uImage.itb | ubinize-kernel
+endif
+endif
+endef
+TARGET_DEVICES += tplink_mx515v-v1
+
+define Device/ubnt_unifi-6-pro
+	$(call Device/FitImage)
+	$(call Device/EmmcImage)
+	DEVICE_VENDOR := Ubiquiti
+	DEVICE_MODEL := UniFi 6 Pro
+	DEVICE_ALT0_VENDOR := Ubiquiti
+	DEVICE_ALT0_MODEL := U6-Pro
+	SOC := ipq5018
+	DEVICE_DTS_CONFIG := config@a650
+	DEVICE_PACKAGES := ath11k-firmware-ipq5018 \
+		kmod-ath11k-pci \
+		ath11k-firmware-qcn9074 \
+		ipq-wifi-ubnt_unifi-6-pro \
+		kmod-fs-f2fs f2fs-tools
+endef
+TARGET_DEVICES += ubnt_unifi-6-pro
 
 define Device/wallys_dr5018s
 	$(call Device/FitImage)
@@ -597,6 +1002,24 @@ define Device/yuncore_ax850
 		ipq-wifi-yuncore_ax850
 endef
 TARGET_DEVICES += yuncore_ax850
+
+define Device/zte_t5400
+	$(call Device/FitImageLzma)
+	$(call Device/UbiFit)
+	DEVICE_VENDOR := ZTE
+	DEVICE_MODEL := T5400
+	DEVICE_DTS_CONFIG := config@mp03.1
+	SOC := ipq5018
+	BLOCKSIZE := 128k
+	PAGESIZE := 2048
+	IMAGE_SIZE := 61440k
+	NAND_SIZE := 256m
+	DEVICE_PACKAGES := ath11k-firmware-ipq5018 \
+		kmod-ath11k-pci \
+		ath11k-firmware-qcn9074 \
+		ipq-wifi-zte_t5400
+endef
+TARGET_DEVICES += zte_t5400
 
 define Device/zyxel_scr50axe
 	$(call Device/FitImage)

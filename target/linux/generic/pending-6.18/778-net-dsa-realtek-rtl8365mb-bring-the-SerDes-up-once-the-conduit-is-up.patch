@@ -56,10 +56,10 @@ Signed-off-by: Mieczyslaw Nalewaj <namiltd@yahoo.com>
 
 --- a/drivers/net/dsa/realtek/rtl8365mb_main.c
 +++ b/drivers/net/dsa/realtek/rtl8365mb_main.c
-@@ -989,6 +989,14 @@ struct rtl8365mb_port {
-  * @sds_misc_target_val: SDS_MISC_CFG_MASK fields the re-latch work restores
+@@ -998,6 +998,14 @@ struct rtl8365mb_port {
   * @sds_relatch_armed: pcs_config() set up 2500base-x; the re-latch work may run
-  * @sds_conduit_up: the CPU port conduit is admin and oper up
+  * @sds_conduit_up: the conduit of the CPU port that carries the SerDes (port 6)
+  *		    is admin and oper up
 + * @sds_defer_needed: the SerDes bring-up is held back until the conduit behind
 + *                    the SerDes CPU port is up, see
 + *                    rtl8365mb_sds_defer_needed() (family C)
@@ -71,7 +71,7 @@ Signed-off-by: Mieczyslaw Nalewaj <namiltd@yahoo.com>
   *
   * Private data for this driver.
   */
-@@ -1017,6 +1025,12 @@ struct rtl8365mb {
+@@ -1026,6 +1034,12 @@ struct rtl8365mb {
  	u32 sds_misc_target_val;
  	bool sds_relatch_armed;
  	bool sds_conduit_up;
@@ -84,7 +84,7 @@ Signed-off-by: Mieczyslaw Nalewaj <namiltd@yahoo.com>
  };
  
  #define pcs_to_rtl8365mb(_pcs) container_of((_pcs), struct rtl8365mb, pcs)
-@@ -1558,28 +1572,30 @@ static int rtl8365mb_sds_relatch_restore(struct rtl8365mb *mb)
+@@ -1567,28 +1581,30 @@ static int rtl8365mb_sds_relatch_restore
  	return ret;
  }
  
@@ -122,7 +122,7 @@ Signed-off-by: Mieczyslaw Nalewaj <namiltd@yahoo.com>
  
  	/* Cancel any in-flight re-latch edge before touching SDS_MISC: the
  	 * work parks SDS_MISC and restores the target value after a sleep, so
-@@ -1672,6 +1688,24 @@ static int rtl8365mb_pcs_config(struct phylink_pcs *pcs, unsigned int neg_mode,
+@@ -1681,6 +1697,24 @@ static int rtl8365mb_pcs_config(struct p
  		misc_val  = (sds_mode == RTL8365MB_EXT_PORT_MODE_SGMII) ?
  			    RTL8365MB_SDS_MISC_MAC8_SEL_SGMII_MASK :
  			    RTL8365MB_SDS_MISC_MAC8_SEL_HSGMII_MASK;
@@ -147,7 +147,7 @@ Signed-off-by: Mieczyslaw Nalewaj <namiltd@yahoo.com>
  	}
  
  	ret = regmap_update_bits(priv->map, RTL8365MB_SDS_MISC_REG,
-@@ -1751,6 +1785,134 @@ static int rtl8365mb_pcs_config(struct phylink_pcs *pcs, unsigned int neg_mode,
+@@ -1760,6 +1794,134 @@ static int rtl8365mb_pcs_config(struct p
  	return 0;
  }
  
@@ -282,7 +282,7 @@ Signed-off-by: Mieczyslaw Nalewaj <namiltd@yahoo.com>
  static void rtl8365mb_conduit_state_change(struct dsa_switch *ds,
  					   const struct net_device *conduit,
  					   bool operational)
-@@ -1758,8 +1920,14 @@ static void rtl8365mb_conduit_state_change(struct dsa_switch *ds,
+@@ -1768,8 +1930,14 @@ static void rtl8365mb_conduit_state_chan
  	struct realtek_priv *priv = ds->priv;
  	struct rtl8365mb *mb = priv->chip_data;
  
@@ -296,9 +296,9 @@ Signed-off-by: Mieczyslaw Nalewaj <namiltd@yahoo.com>
  		return;
 +	}
  
- 	guard(mutex)(&mb->sds_cfg_lock);
- 
-@@ -2006,12 +2174,11 @@ static void rtl8365mb_pcs_get_state(struct phylink_pcs *pcs,
+ 	/* The chip can have two CPU ports (SerDes on port 6, RGMII on
+ 	 * port 7) and DSA reports every conduit. Only the one behind the
+@@ -2023,12 +2191,11 @@ static void rtl8365mb_pcs_get_state(stru
  	}
  }
  
@@ -315,7 +315,7 @@ Signed-off-by: Mieczyslaw Nalewaj <namiltd@yahoo.com>
  	struct realtek_priv *priv = mb->priv;
  	u32 mask = RTL8365MB_SDS_MISC_SGMII_FDUP_MASK |
  		   RTL8365MB_SDS_MISC_SGMII_LINK_MASK |
-@@ -2060,12 +2227,38 @@ static void rtl8365mb_pcs_link_up(struct phylink_pcs *pcs,
+@@ -2077,12 +2244,38 @@ static void rtl8365mb_pcs_link_up(struct
  	}
  }
  
@@ -355,7 +355,7 @@ Signed-off-by: Mieczyslaw Nalewaj <namiltd@yahoo.com>
  
  	guard(mutex)(&mb->sds_cfg_lock);
  
-@@ -4138,6 +4331,7 @@ static int rtl8365mb_setup(struct dsa_switch *ds)
+@@ -4180,6 +4373,7 @@ static int rtl8365mb_setup(struct dsa_sw
  	 * (in-band mode with autonegotiation disabled).
  	 */
  	mb->pcs.poll = true;
@@ -363,7 +363,7 @@ Signed-off-by: Mieczyslaw Nalewaj <namiltd@yahoo.com>
  
  	ret = rtl8365mb_reset_chip(priv);
  	if (ret) {
-@@ -4336,6 +4530,11 @@ static void rtl8365mb_teardown(struct dsa_switch *ds)
+@@ -4389,6 +4583,11 @@ static void rtl8365mb_teardown(struct ds
  
  		WRITE_ONCE(mb->sds_relatch_armed, false);
  		cancel_delayed_work_sync(&mb->sds_relatch);

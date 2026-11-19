@@ -54,11 +54,13 @@ function renderStatus(d) {
 		return i.port + (i.active ? ' ✓' : ' ✗');
 	}).join('  ');
 
-	// d.mesh: {configured, fw_capable} - whether a mesh interface is set up
-	// and whether the loaded firmware offloads 802.11s mesh.
+	// d.mesh: {configured, offloaded, fw_capable} - whether a mesh interface
+	// is set up, whether ath11k got a firmware vdev for it, and whether the
+	// loaded firmware offloads 802.11s mesh at all.
 	var mesh = d.mesh || {};
 	var wifi = d.wifi_offload == 1 ?
-	               (mesh.configured ? _('NSS offload active (wifili, 802.11s mesh offloaded)')
+	               (mesh.configured && mesh.offloaded ? _('NSS offload active (wifili, 802.11s mesh offloaded)') :
+	                mesh.configured ? _('NSS offload active (wifili; 802.11s mesh configured, not offloaded)')
 	                                : _('NSS offload active (wifili)')) :
 	           d.wifi_offload == 0 ?
 	               (mesh.configured && mesh.fw_capable ? _('host mode (mesh configured; firmware supports mesh offload)') :
@@ -102,6 +104,33 @@ function renderStatus(d) {
 		]);
 	});
 
+	// Packets through the firmware's Wi-Fi data path per radio, since boot:
+	// a Wi-Fi client never touches a switch port, so a fully offloaded Wi-Fi
+	// download would otherwise read as an idle router. rx_reaped is every
+	// frame off the radio's REO ring; rx_delivered only those handed to an
+	// AP or STA interface, which an offloaded mesh link never is.
+	var wifiliRows = (d.wifili || []).map(function(w) {
+		return E('tr', { 'class': 'tr' }, [
+			E('td', { 'class': 'td', 'data-title': _('Radio') }, [ w.radio ]),
+			E('td', { 'class': 'td', 'data-title': _('TX sent') }, [ String(w.tx_sent) ]),
+			E('td', { 'class': 'td', 'data-title': _('RX (REO)') }, [ String(w.rx_reaped != null ? w.rx_reaped : '-') ]),
+			E('td', { 'class': 'td', 'data-title': _('RX delivered') }, [ String(w.rx_delivered) ])
+		]);
+	});
+
+	var wifiliSection = wifiliRows.length ? [
+		E('h3', {}, _('Wi-Fi radios on the firmware')),
+		E('table', { 'class': 'table' }, [
+			E('tr', { 'class': 'tr table-titles' }, [
+				E('th', { 'class': 'th' }, _('Radio')),
+				E('th', { 'class': 'th' }, _('TX sent')),
+				E('th', { 'class': 'th' }, _('RX (REO)')),
+				E('th', { 'class': 'th' }, _('RX delivered'))
+			])
+		].concat(wifiliRows)),
+		E('p', {}, E('em', {}, _('Packets through the firmware\'s Wi-Fi data path since boot, per radio. "RX (REO)" is every frame the radio received; "RX delivered" counts only frames for an AP or STA interface, so frames of an offloaded 802.11s mesh link show up in the first column only.')))
+	] : [];
+
 	var dsaSection = dsaNodeRows.length ? [
 		E('h3', {}, _('Switch ports and bridges on the firmware (DSA)')),
 		E('table', { 'class': 'table' }, [
@@ -141,7 +170,9 @@ function renderStatus(d) {
 					? _('nsstbl on %s (a lane on the switch conduit %s)').format(d.sqm.device, d.sqm.shaping_device)
 					: _('nsstbl on %s').format(d.sqm.device)) +
 					(igs ? ' — ' + _('upload IGS: %s').format(igs) : '')
-				: (d.sqm.device ? _('no NSS shaper on %s').format(d.sqm.device) : _('no NSS shaper'))),
+				: !d.sqm.enabled
+					? _('off (no queue enabled in /etc/config/sqm)')
+					: (d.sqm.device ? _('no NSS shaper on %s').format(d.sqm.device) : _('no NSS shaper'))),
 			(d.sqm.fastlane && d.sqm.fastlane.active)
 				? row(_('Fast lane'), _('egress %s pkts / ingress %s pkts — %s marking rules').format(
 					d.sqm.fastlane.egress_pkts, d.sqm.fastlane.ingress_pkts, d.sqm.qos_marking_rules || 0))
@@ -164,7 +195,7 @@ function renderStatus(d) {
 			])
 		])),
 		E('p', {}, E('em', {}, _('Offloaded packets are forwarded by the firmware and never reach the host. "via host" / "to host" is the host↔firmware exception path — what was not offloaded — so low numbers there mean offload is working. Broadcast and multicast discovery, connection setup, short-lived flows and traffic addressed to the router itself always take that path: a flow is only offloaded once it is established, so a quiet port that carries little else shows a low offloaded share. Port totals are on Status → Overview.')))
-	].concat(dsaSection));
+	].concat(wifiliSection, dsaSection));
 }
 
 return view.extend({

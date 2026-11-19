@@ -237,6 +237,38 @@ for f in /sys/firmware/devicetree/base/soc*/wifi*/qcom,ath11k-fw-memory-mode; do
 	mode=$(hexdump -v -e '1/1 "%02x"' "$f" 2>/dev/null)
 	fw_mem_modes="$fw_mem_modes ${radio}=$(( 0x${mode:-0} ))"
 done
+# Packets through the firmware's Wi-Fi data path, per radio, since boot. The
+# wifili stats file has one block per SoC ("INTERNAL: <soc>" for the built-in
+# radio, "ATTACH <n>: <chip>" for a PCIe one) and one block per PDEV inside it.
+# The built-in SoC prints PDEVs with no radio behind them as all zeros, so a
+# row that is zero all ways is left out. This is
+# the Wi-Fi side of the port table above: a LAN client on Wi-Fi never touches
+# the switch port, so without it a fully offloaded Wi-Fi download reads as an
+# idle router. The driver spells the rx counter "deliverd". It counts only
+# frames handed to an AP or STA interface: an offloaded 802.11s link passes
+# its frames from the REO ring straight to the mesh node, so a radio carrying
+# just a mesh link reads 0 there. reo_reaped counts every frame off the ring.
+wifili_radios=
+if [ "$wifi_offload" = 1 ] && [ -r "$DRV/wifili" ]; then
+	wifili_radios=$(awk '
+		/<<+ *INTERNAL: / { soc = $0; sub(/.*INTERNAL: */, "", soc); sub(/ *>.*/, "", soc) }
+		/<<+ *ATTACH [0-9]+: / { soc = $0; sub(/.*ATTACH [0-9]+: */, "", soc); sub(/ *>.*/, "", soc) }
+		/<<+ *PDEV [0-9]+ / { pdev = $0; sub(/.*PDEV */, "", pdev); sub(/ *>.*/, "", pdev) }
+		/_tx_sent_count[ \t]*=/ || /_rx_deliverd[ \t]*=/ || /_reo_reaped[ \t]*=/ {
+			k = soc "/" pdev
+			if (!(k in seen)) { seen[k] = 1; order[n++] = k }
+			if ($1 ~ /_tx_sent_count$/) tx[k] = $3
+			else if ($1 ~ /_reo_reaped$/) reo[k] = $3
+			else rx[k] = $3
+		}
+		END {
+			for (i = 0; i < n; i++) {
+				k = order[i]
+				if (tx[k] + rx[k] + reo[k] > 0) print k, tx[k] + 0, rx[k] + 0, reo[k] + 0
+			}
+		}
+	' "$DRV/wifili" 2>/dev/null)
+fi
 
 nss_sqm_section
 sqm_sec=$NSS_SQM_SEC
@@ -373,13 +405,18 @@ if [ "$JSON" = 1 ]; then
 		printf '{"netdev":"%s","carrier":%s,"tx_total":%s,"rx_total":%s},' "$nd" "$car" "$ttx" "$trx"
 	done)
 	djson="[${djson%,}]"
+	wjson=$(echo "$wifili_radios" | while read -r radio wtx wrx wreo; do
+		[ -n "$radio" ] || continue
+		printf '{"radio":"%s","tx_sent":%s,"rx_delivered":%s,"rx_reaped":%s},' "$radio" "$wtx" "$wrx" "$wreo"
+	done)
+	wjson="[${wjson%,}]"
 
 	cat <<-EOF
 	{"state":"$state","fw_version":"$fw_version","fw_mask":"$fw_mask","glue":"$GLUE_KIND",
 	"heartbeat_pps":$heartbeat,"cores":$cjson,"ports":$pjson,"dsa_nodes":$dnjson,"dsa_ports":$djson,
 	"ecm":{"loaded":$ecm_loaded,"ipv4_accel":$ecm_v4,"ipv6_accel":$ecm_v6,"multicast_accel":$ecm_mc},
 	"modules":{"bridge_mgr":$bridge_mgr,"pppoe":$pppoe_mgr},
-	"wifi_offload":$wifi_offload,
+	"wifi_offload":$wifi_offload,"wifili":$wjson,
 	"mesh":{"configured":$mesh_cfg,"offloaded":$mesh_vdev,"fw_capable":$mesh_capable},
 	"kernel_log":{"warns":$kwarns,"oopses":$koops},
 	"sqm":{"enabled":$sqm_enabled,"active":$sqm_active,"device":"$sqm_dev","shaping_device":"$sqm_phys","lanes":$sqm_lanes,"igs":$ijson,
@@ -583,6 +620,16 @@ case "$wifi_offload" in
 	    fi ;;
 	*)  echo "  Wi-Fi:       ath11k not loaded" ;;
 esac
+if [ -n "$wifili_radios" ]; then
+	echo "               firmware Wi-Fi data path, packets since boot, per radio:"
+	printf "    %-20s %12s %12s %14s\n" "radio/pdev" "tx sent" "rx (REO)" "rx delivered"
+	echo "$wifili_radios" | while read -r radio wtx wrx wreo; do
+		[ -n "$radio" ] || continue
+		printf "    %-20s %12s %12s %14s\n" "$radio" "$wtx" "$wreo" "$wrx"
+	done
+	[ "$mesh_vdev" = 1 ] &&
+		echo "    (rx delivered counts AP/STA frames only; 802.11s mesh frames go from REO to the mesh node)"
+fi
 [ -n "$fw_mem_modes" ] && echo "  fw mem mode:$fw_mem_modes (from the device tree)"
 if [ "$sqm_active" = 1 ]; then
 	igs_human=$(echo "$igs_ports" | sed 's/\([a-z0-9]*\):1/\1/g; s/\([a-z0-9]*\):0/\1(MISSING)/g')

@@ -1,0 +1,33 @@
+From: Stanislaw Pal <kuncy7@gmail.com>
+Subject: [PATCH] arm64: dts: qcom: ipq5018: let the CPU boost to 1296 MHz
+
+With the PLL change parked on GPLL0 (0973), the CPU can move between
+operating points. Add 1296 MHz above the rated 1008 MHz, so that
+schedutil raises the clock under load and drops back to 1008 MHz
+otherwise. Both come from the PLL (L = 42 and 54 of the 24 MHz XO): the
+mux driver puts the CPU back on the PLL after every rate change, so an
+operating point served by GPLL0, such as the 800 MHz one 0912 removed,
+would leave the clock framework and the hardware disagreeing.
+
+The boards have no CPU regulator, so the voltage stays at 1.1 V at both
+rates. That is also why there is no operating point below 1008 MHz: at
+a fixed voltage it would save little, and idle cores sit in WFI anyway.
+The cpu-thermal passive trip at 100 C throttles through cpufreq.
+
+Signed-off-by: Stanislaw Pal <kuncy7@gmail.com>
+---
+--- a/arch/arm64/boot/dts/qcom/ipq5018.dtsi
++++ b/arch/arm64/boot/dts/qcom/ipq5018.dtsi
+@@ -100,6 +100,12 @@
+ 			opp-microvolt = <1100000>;
+ 			clock-latency-ns = <200000>;
+ 		};
++
++		opp-1296000000 {
++			opp-hz = /bits/ 64 <1296000000>;
++			opp-microvolt = <1100000>;
++			clock-latency-ns = <200000>;
++		};
+ 	};
+ 
+ 	firmware {

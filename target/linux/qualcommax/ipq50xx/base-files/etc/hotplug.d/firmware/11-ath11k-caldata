@@ -51,9 +51,26 @@ case "$FIRMWARE" in
 		ath11k_patch_mac $(macaddr_add $(get_mac_label_dt) 3) 0
 		ath11k_set_macflag
 		;;
+	ruijie,rg-ma3063)
+		caldata_extract "0:art" 0x1000 0x20000
+		caldata_patch_data "0000" 0x45c 0xa
+		wlan_mac=$(macaddr_add $(mtd_get_mac_ascii 0:appsblenv ethaddr) 2)
+		ath11k_patch_mac $wlan_mac 0
+		ath11k_set_macflag
+		;;
 	glinet,gl-x2000)
 		caldata_extract "0:art" 0x1000 0x20000
 		ath11k_patch_mac $(macaddr_add $(mtd_get_mac_binary "0:art" 0x6) 2) 0
+		ath11k_set_macflag
+		;;
+	h3c,magic-bx54-eu|\
+	h3c,magic-nx30|\
+	h3c,magic-nx54|\
+	h3c,magic-rc3000-v1|\
+	h3c,magic-rc3000-v2|\
+	h3c,magic-rc3000-v3)
+		caldata_extract "0:art" 0x1000 0x20000
+		ath11k_patch_mac $(macaddr_add $(mtd_get_mac_ascii 0:appsblenv ethaddr) 2) 0
 		ath11k_set_macflag
 		;;
 	linksys,mr2000|\
@@ -80,7 +97,20 @@ case "$FIRMWARE" in
 		[ -n "$label_mac" ] && ath11k_patch_mac "$(macaddr_add "$label_mac" -1)" 0
 		ath11k_set_macflag
 		;;
-	tplink,archer-ax55-v1)
+	netgear,wax630e)
+		caldata_extract "0:art" 0x1000 0x20000
+		ath11k_patch_mac $(mtd_get_mac_binary 0:mfgdata 0x6) 0
+		ath11k_set_macflag
+		;;
+	tplink,archer-ax53-v2)
+		caldata_extract "0:ART" 0x1000 0x20000
+		label_mac=$(get_mac_binary "/tmp/tp_data/default-mac" 0)
+		[ -n "$label_mac" ] && ath11k_patch_mac "$(macaddr_add "$label_mac" -1)" 0
+		ath11k_set_macflag
+		ath11k_remove_regdomain
+		;;
+	tplink,archer-ax55-v1|\
+	tplink,archer-ax58-v2)
 		caldata_extract "0:ART" 0x1000 0x20000
 		label_mac=$(get_mac_binary "/tmp/tp_data/default-mac" 0)
 		[ -n "$label_mac" ] && ath11k_patch_mac "$(macaddr_add "$label_mac" 2)" 0
@@ -93,14 +123,28 @@ case "$FIRMWARE" in
 		ath11k_patch_mac $label_mac 0
 		ath11k_set_macflag
 		;;
+	tplink,mx515v-v1)
+		caldata_from_file "/tmp/tp_data/0x04380000" 0 0x20000
+		label_mac=$(get_mac_binary /tmp/tp_data/0x0434F100 0)
+		[ -n "$label_mac" ] && ath11k_patch_mac "$label_mac" 0
+		ath11k_set_macflag
+		ath11k_remove_regdomain
+		;;
 	tplink,re700x)
 		caldata_extract "0:art" 0x1000 0x20000
 		label_mac=$(get_mac_binary /tmp/factory_data/default-mac 0)
 		ath11k_patch_mac $(macaddr_add $label_mac 1) 0
 		ath11k_set_macflag
 		;;
+	wallys,dr5018s)
+		caldata_extract "0:ART" 0x1000 0x20000
+		ath11k_set_macflag
+		;;
 	xiaomi,mi-router-ax3000t-v2|\
 	xiaomi,ax6000|\
+	xiaomi,cr8806|\
+	xiaomi,ra80|\
+	xiaomi,redmi-ax3000-ubootmod|\
 	xiaomi,redmi-ax5400)
 		caldata_extract "0:art" 0x1000 0x20000
 		;;
@@ -113,10 +157,6 @@ case "$FIRMWARE" in
 		label_mac=$(mtd_get_mac_binary 0:ART 0)
 		ath11k_patch_mac $(macaddr_add $label_mac 2) 0
 		ath11k_remove_regdomain
-		ath11k_set_macflag
-		;;
-	wallys,dr5018s)
-		caldata_extract "0:ART" 0x1000 0x20000
 		ath11k_set_macflag
 		;;
 	esac
@@ -158,6 +198,21 @@ case "$FIRMWARE" in
 		ath11k_patch_mac $(macaddr_add $(get_mac_label_dt) 4) 0
 		ath11k_set_macflag
 		;;
+	h3c,magic-nx30|\
+	h3c,magic-rc3000-v1|\
+	h3c,magic-rc3000-v2|\
+	h3c,magic-rc3000-v3)
+		caldata_extract "0:art" 0x26800 0x20000
+		ath11k_patch_mac $(macaddr_add $(mtd_get_mac_ascii 0:appsblenv ethaddr) 3) 0
+		ath11k_set_macflag
+		;;
+	ruijie,rg-ma3063)
+		caldata_extract "0:art" 0x26800 0x20000
+		wlan_mac=$(macaddr_add $(mtd_get_mac_ascii 0:appsblenv eth1addr) 3)
+		ath11k_patch_mac $wlan_mac 0
+		ath11k_remove_regdomain
+		ath11k_set_macflag
+		;;
 	linksys,mr2000|\
 	linksys,mx2000)
 		caldata_extract "0:art" 0x26800 0x20000
@@ -179,7 +234,20 @@ case "$FIRMWARE" in
 		[ -n "$label_mac" ] && ath11k_patch_mac "$(macaddr_add "$label_mac" -2)" 0
 		ath11k_set_macflag
 		;;
-	tplink,archer-ax55-v1)
+	netgear,wax630e)
+		caldata_extract "0:art" 0x26800 0x20000
+		ath11k_patch_mac $(macaddr_add $(mtd_get_mac_binary 0:mfgdata 0x6) 64) 0
+		ath11k_set_macflag
+		;;
+	tplink,archer-ax53-v2)
+		caldata_extract "0:ART" 0x26800 0x20000
+		label_mac=$(get_mac_binary "/tmp/tp_data/default-mac" 0)
+		[ -n "$label_mac" ] && ath11k_patch_mac "$(macaddr_add "$label_mac" -2)" 0
+		ath11k_set_macflag
+		ath11k_remove_regdomain
+		;;
+	tplink,archer-ax55-v1|\
+	tplink,archer-ax58-v2)
 		caldata_extract "0:ART" 0x26800 0x20000
 		label_mac=$(get_mac_binary "/tmp/tp_data/default-mac" 0)
 		[ -n "$label_mac" ] && ath11k_patch_mac "$(macaddr_add "$label_mac" 3)" 0
@@ -195,7 +263,23 @@ case "$FIRMWARE" in
 	tplink,ex511-v2)
 		dd if=/dev/zero of=/lib/firmware/$FIRMWARE bs=4096 count=32 2>/dev/null
 		;;
+	tplink,mx515v-v1)
+		caldata_from_file "/tmp/tp_data/0x043A0000" 0 0x20000
+		label_mac=$(get_mac_binary /tmp/tp_data/0x0434F100 0)
+		[ -n "$label_mac" ] && ath11k_patch_mac "$(macaddr_add "$label_mac" 2)" 0
+		ath11k_set_macflag
+		ath11k_remove_regdomain
+		;;
+	wallys,dr5018s)
+		caldata_extract "0:ART" 0x26800 0x20000
+		ath11k_set_macflag
+		;;
 	xiaomi,mi-router-ax3000t-v2)
+		caldata_extract "0:art" 0x26800 0x20000
+		;;
+	xiaomi,cr8806|\
+	xiaomi,ra80|\
+	xiaomi,redmi-ax3000-ubootmod)
 		caldata_extract "0:art" 0x26800 0x20000
 		;;
 	yuncore,ax830)
@@ -203,10 +287,6 @@ case "$FIRMWARE" in
 		label_mac=$(mtd_get_mac_binary 0:ART 0)
 		ath11k_patch_mac $(macaddr_add $label_mac 3) 0
 		ath11k_remove_regdomain
-		ath11k_set_macflag
-		;;
-	wallys,dr5018s)
-		caldata_extract "0:ART" 0x26800 0x20000
 		ath11k_set_macflag
 		;;
 	esac
@@ -224,6 +304,10 @@ case "$FIRMWARE" in
 		ath11k_patch_mac $(macaddr_add $label_mac 4) 0
 		ath11k_remove_regdomain
 		;;
+	wallys,dr5018s)
+		caldata_extract "0:ART" 0x4c000 0x20000
+		ath11k_set_macflag
+		;;
 	zyxel,scr50axe)
 		caldata_extract "0:art" 0x4C000 0x20000
 		wlan_mac=$(mtd_get_mac_ascii 0:appsblenv wifi2)
@@ -234,6 +318,12 @@ case "$FIRMWARE" in
 	;;
 "ath11k/QCN9074/hw1.0/cal-pci-0000:01:00.0.bin")
 	case "$board" in
+	h3c,magic-bx54-eu|\
+	h3c,magic-nx54)
+		caldata_extract "0:art" 0x26800 0x20000
+		ath11k_patch_mac $(macaddr_add $(mtd_get_mac_ascii 0:appsblenv ethaddr) 3) 0
+		ath11k_set_macflag
+		;;
 	linksys,mr5500|\
 	linksys,mx5500|\
 	linksys,spnmx56)
@@ -241,6 +331,11 @@ case "$FIRMWARE" in
 		label_mac=$(mtd_get_mac_ascii devinfo hw_mac_addr)
 		ath11k_patch_mac $(macaddr_add $label_mac 2) 0
 		ath11k_remove_regdomain
+		ath11k_set_macflag
+		;;
+	netgear,wax630e)
+		caldata_extract "0:art" 0x4c000 0x20000
+		ath11k_patch_mac $(macaddr_add $(mtd_get_mac_binary 0:mfgdata 0x6) 32) 0
 		ath11k_set_macflag
 		;;
 	tplink,eap650-outdoor-v1)
@@ -258,10 +353,6 @@ case "$FIRMWARE" in
 		label_mac=$(mtd_get_mac_binary 0:ART 0)
 		ath11k_patch_mac $(macaddr_add $label_mac 3) 0
 		ath11k_remove_regdomain
-		ath11k_set_macflag
-		;;
-	wallys,dr5018s)
-		caldata_extract "0:ART" 0x4c000 0x20000
 		ath11k_set_macflag
 		;;
 	esac

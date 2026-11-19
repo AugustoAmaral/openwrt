@@ -1,7 +1,7 @@
-From b866eded7127d3e2098a8043f43daa37d5efcb0e Mon Sep 17 00:00:00 2001
+From bef756de256554ad319119903a3f67d6de135429 Mon Sep 17 00:00:00 2001
 From: Mieczyslaw Nalewaj <namiltd@yahoo.com>
 Date: Fri, 24 Jul 2026 05:35:45 +0200
-Subject: [PATCH net-next v6 5/9] net: dsa: realtek: rtl8365mb: set and get
+Subject: [PATCH net-next v7 05/10] net: dsa: realtek: rtl8365mb: set and get
  vlan 4k for family D
 
 The hardware structure of 4K VLAN table entries has changed between
@@ -30,12 +30,11 @@ The family D paths are not reachable until the RTL8367S-VB chip table
 entry is added in the last patch of the series.
 
 Signed-off-by: Mieczyslaw Nalewaj <namiltd@yahoo.com>
+Reviewed-by: Linus Walleij <linusw@kernel.org>
 ---
  drivers/net/dsa/realtek/rtl8365mb_vlan.c | 161 ++++++++++++++++-------
  1 file changed, 111 insertions(+), 50 deletions(-)
 
-diff --git a/drivers/net/dsa/realtek/rtl8365mb_vlan.c b/drivers/net/dsa/realtek/rtl8365mb_vlan.c
-index 8d49ffa..36f0d2a 100644
 --- a/drivers/net/dsa/realtek/rtl8365mb_vlan.c
 +++ b/drivers/net/dsa/realtek/rtl8365mb_vlan.c
 @@ -48,12 +48,16 @@
@@ -84,7 +83,7 @@ index 8d49ffa..36f0d2a 100644
  	if (ret)
  		return ret;
  
-@@ -199,33 +209,61 @@ static int rtl8365mb_vlan_4k_read(struct realtek_priv *priv, u16 vid,
+@@ -199,33 +209,61 @@ static int rtl8365mb_vlan_4k_read(struct
  	memset(vlan4k, 0, sizeof(*vlan4k));
  	vlan4k->vid = vid;
  
@@ -168,7 +167,7 @@ index 8d49ffa..36f0d2a 100644
  
  	return 0;
  }
-@@ -233,6 +271,9 @@ static int rtl8365mb_vlan_4k_read(struct realtek_priv *priv, u16 vid,
+@@ -233,6 +271,9 @@ static int rtl8365mb_vlan_4k_read(struct
  static int rtl8365mb_vlan_4k_write(struct realtek_priv *priv,
  				   const struct rtl8365mb_vlan4k *vlan4k)
  {
@@ -178,7 +177,7 @@ index 8d49ffa..36f0d2a 100644
  	u16 data[RTL8365MB_CVLAN_ENTRY_SIZE] = { 0 };
  	u16 vid;
  	int val;
-@@ -244,36 +285,56 @@ static int rtl8365mb_vlan_4k_write(struct realtek_priv *priv,
+@@ -244,36 +285,56 @@ static int rtl8365mb_vlan_4k_write(struc
  	val = FIELD_GET(RTL8365MB_CVLAN_UNTAG_LO_MASK, vlan4k->untag);
  	data[0] |= FIELD_PREP(RTL8365MB_CVLAN_ENTRY_D0_UNTAG_MASK, val);
  
@@ -261,6 +260,3 @@ index 8d49ffa..36f0d2a 100644
  }
  
  static int
--- 
-2.53.0
-

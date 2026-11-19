@@ -1,0 +1,12 @@
+#!/bin/sh
+# pbuf.uci used to set scaling_governor 'performance', which pinned the
+# IPQ5018 at 1296 MHz from the 1296 MHz OPP on. /etc/config/pbuf is kept
+# across sysupgrade, so drop that one value once and leave the kernel's
+# schedutil in charge. Any other governor set by hand stays.
+
+[ "$(uci -q get pbuf.opt.scaling_governor)" = "performance" ] || exit 0
+
+uci -q delete pbuf.opt.scaling_governor
+uci -q commit pbuf
+
+exit 0

@@ -1,0 +1,36 @@
+From: Stanislaw Pal <kuncy7@gmail.com>
+Subject: [PATCH] clk: qcom: apss-ipq6018: detour the IPQ5018 CPU through GPLL0 on a rate change
+
+The IPQ53xx SoCs register a notifier that parks the CPU mux on GPLL0
+for the length of a CPU PLL rate change, because their Stromer Plus PLL
+stops its output while it relocks. The IPQ50xx ones do not. Their PLL
+only takes a new rate when it is relocked from reset as well (0975), so
+without the detour a rate change would stop the clock the CPU is
+running from. This is why IPQ5018 has had a single operating point
+(0912).
+
+Register the same notifier for the IPQ50xx SoC IDs.
+
+Signed-off-by: Stanislaw Pal <kuncy7@gmail.com>
+---
+--- a/drivers/clk/qcom/apss-ipq6018.c
++++ b/drivers/clk/qcom/apss-ipq6018.c
+@@ -132,6 +132,18 @@
+ 	case QCOM_ID_IPQ5332:
+ 	case QCOM_ID_IPQ5322:
+ 	case QCOM_ID_IPQ5300:
++	/*
++	 * The IPQ50xx CPU PLL is relocked from reset on a rate change,
++	 * which stops its output, so it needs the same detour through
++	 * GPLL0.
++	 */
++	case QCOM_ID_IPQ5000:
++	case QCOM_ID_IPQ5010:
++	case QCOM_ID_IPQ5016:
++	case QCOM_ID_IPQ5018:
++	case QCOM_ID_IPQ5028:
++	case QCOM_ID_IPQ0509:
++	case QCOM_ID_IPQ0518:
+ 		cpu_clk_notifier = devm_kzalloc(&pdev->dev,
+ 						sizeof(*cpu_clk_notifier),
+ 						GFP_KERNEL);

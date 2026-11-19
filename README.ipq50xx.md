@@ -73,23 +73,32 @@ over a running OpenWrt, from LuCI or with `sysupgrade`. There is no factory
 image: a board that is not in official OpenWrt needs a plain OpenWrt image
 built from this tree first (Quick start below), and a board that is gets the
 official one. `sha256sums-<group>.txt` next to the images has the checksums.
+The H3C Magic boards (BX54 EU, NX30, NX54, RC3000) are the exception: they are first
+installed from the stock web UI with their `factory` image
+(`…-squashfs-factory-<model>.bin`), which the release carries next to the
+sysupgrade image; the commit that adds each board has the steps.
 
-The Xiaomi Mi Router AX3000T v2 is the exception: its stock U-Boot only boots
-a freshly ubiformatted kernel volume, so it refuses an in-place sysupgrade and
-is installed and upgraded from `openwrt-qualcommax-ipq50xx-xiaomi_mi-router-ax3000t-v2-initramfs-factory.ubi`,
-in the `256m` group's release (steps in the commit that adds the board). That
-image is for installing only: it runs from RAM, so with Wi-Fi up it can run out
-of memory.
+The Xiaomi Mi Router AX3000T v2 is the exception for the first install: from
+stock it is installed from a RAM-booted initramfs (steps in the commit that adds
+the board; its note that upgrades must also go through the initramfs no longer
+applies). The `256m` group's release carries
+`openwrt-qualcommax-ipq50xx-xiaomi_mi-router-ax3000t-v2-initramfs-factory.ubi`,
+which an installed system can write to boot one without UART; it runs from RAM,
+so with Wi-Fi up it can run out of memory. Once installed, the board upgrades in
+place like the others. Images built before in-place upgrades were allowed
+refuse one: on those, check that `sysupgrade -T` shows only that refusal, then
+run `sysupgrade -F` once with this board's sysupgrade image.
 
 Every image is built with the whole plane in: `nss-tools-dwmac`, firmware
-12.5-210 (12.2-156 up to `ipq50xx-2026.10.14`), VLAN and PPPoE managers, ath11k with the NSS patches, plus `ip-full`
+12.5-210 in the `std` group and 12.2-156 in the `256m` group (12.2-156 in both
+up to `ipq50xx-2026.10.14`, 12.5-210 in both up to `ipq50xx-2026.11.11`), VLAN and PPPoE managers, ath11k with the NSS patches, plus `ip-full`
 and `iperf3` for checking it. Boards come in two groups, because the ath11k and
 NSS memory profiles are a build-time choice for the whole image:
 
 | group | boards | memory profile |
 |---|---|---|
 | `std` | 512 MB and 1 GB boards (the release notes list them) | ath11k 1G, NSS medium |
-| `256m` | Cudy P5, TP-Link EX511 v2, Xiaomi Mi Router AX3000T v2 | ath11k 256M, NSS low |
+| `256m` | Cudy P5, H3C Magic NX30, H3C Magic RC3000 v1, v2 and v3, Ruijie RG-MA3063, TP-Link Archer AX53 v2, TP-Link Archer AX58 v2, TP-Link EX511 v2, Xiaomi CR8806 (also CR8808, CR8809, Redmi AX3000), Xiaomi Redmi AX3000 (single rootfs layout), Xiaomi Mi Router AX3000T v2 | ath11k 256M, NSS low |
 
 The exact configuration of each group is in `.github/ci/ipq50xx/` (`common.config`
 + `<group>.config` + `kmods-extra.config`) and, for a given release, in the
@@ -268,14 +277,21 @@ package unset, and gives an image whose 2.4 GHz radio does not come up
 
 ### Firmware: 12.5-210 and 12.2-156
 
-The release images carry `NSS.FW.12.5-210-MP` since 15 October 2026
-(`NSS_FIRMWARE_VERSION_12_5` in `.github/ci/ipq50xx/common.config`); before
-that they carried `NSS.FW.12.2-156-MP.R` (`NSS_FIRMWARE_VERSION_12_2`), the
-newest firmware published for IPQ5018 (May 2025, nine months after 12.5),
-which most measurements in this file were taken on. On the GL-B3000 and the
-Archer AX55 v1 the two carry the same routed, bridged and 802.11s mesh traffic
-at the same speed. The feed defaults to 12.5 as well; a `.config` of your
-own that already names a version keeps it.
+The `std` release images carry `NSS.FW.12.5-210-MP` since 15 October 2026
+(`NSS_FIRMWARE_VERSION_12_5` in `.github/ci/ipq50xx/std.config`). The `256m`
+images carried it from 15 October to `ipq50xx-2026.11.11` and are back on
+`NSS.FW.12.2-156-MP.R` after it (`NSS_FIRMWARE_VERSION_12_2` in
+`.github/ci/ipq50xx/256m.config`): with 12.5-210, some 802.11ac clients (an
+MT7612U USB adapter in the report) leave payload buffers in the firmware round
+after round, a few hundred per minute of download on 5 GHz, which the small
+pool of a 256 MB board cannot afford; 12.2-156 gives them back with the same
+client (kuncy7/openwrt-nss-edma#64, measured on an H3C Magic RC3000 v1 with
+this group's config; not seen with a Wi-Fi 6 client). Before 15 October every image carried
+12.2-156, the newest firmware published for IPQ5018 (May 2025, nine months
+after 12.5), which most measurements in this file were taken on. On the
+GL-B3000 and the Archer AX55 v1 the two carry the same routed, bridged and
+802.11s mesh traffic at the same speed. The feed defaults to 12.5; a `.config`
+of your own that already names a version keeps it.
 
 **Build for the firmware you run.** The two lay out the Wi-Fi peer statistics
 differently (196 against 212 bytes per entry), and `qca-nss-drv` is built for
@@ -383,43 +399,45 @@ Also on the AN8855 in this mode:
 - Unknown unicast, multicast and broadcast floods include the CPU port, so the
   host sees flooded traffic of every port.
 
+On all three switches, an ordinary frame that a port of a bridge sends to the
+CPU also arrives in the bridge's VLAN, and the bridge files it under the first
+of its ports that forwards. Unicast does not suffer, since the switch forwards
+between its own ports by its own FDB, but IGMP/MLD snooping does: a membership
+report from one port is registered on another, and the group's traffic then
+misses the port that asked for it (measured on the QCA8337, VLAN-aware bridges
+included, [#48](https://github.com/kuncy7/openwrt-nss-edma/issues/48)). Leave
+`igmp_snooping` off on bridges over switch ports, as OpenWrt does by default;
+multicast is then flooded to every port of the bridge.
+
 A board whose switch is driven by `qca8k`, `rtl8365mb` or `an8855` gets the
 `dsa` topology on first boot, and **nothing about the wiring is configured**: the
 switch stays with its driver, so ports, CPU port and VLANs are the kernel's,
 and the rest is read off the board at every boot - the GMACs from the nodes
 their netdevs sit on (`ethernet@39c00000` = GMAC0 = `phys_if 0`,
 `ethernet@39d00000` = GMAC1 = `phys_if 1`), the trunk as the conduit DSA hangs
-the user ports off, and `fw_mask` from what netifd brought up: the conduit
-plus any GMAC that is not a conduit and is up (a WAN PHY of its own), never a
-second CPU port DSA does not use or a GMAC nothing configured.
+the user ports off, and `fw_mask` from what netifd brought up: every CPU port
+DSA gave user ports, plus any GMAC that is not a conduit and is up (a WAN PHY
+of its own), never a second CPU port DSA left idle or a GMAC nothing
+configured.
 `nss-dwmac-probe` prints that view; `trunk`, `trunk_if`, `extra_ports` and
-`fw_mask` in uci still override it if a board needs that. One thing first boot
-does change: a board table that splits the DSA ports across both CPU links
-(the Redmi AX5400, the Cudy P5 and the CMCC PZ-L8 put `lan1`-`lan3` on `eth1`
-and `wan` on `eth0`) is consolidated onto the link that carries most of them,
-because only the armed conduit's ports get a firmware VLAN interface - and on
-the AX5400 the odd link is GMAC0 into switch port 5, whose RX is dead in
-mainline as well (openwrt#24696). The split is read where `board.d` puts it,
-`/etc/board.json` (`network_device.<port>.conduit`, applied by netifd - there
-is no `config device` section for it in `/etc/config/network`), with any such
-section LuCI or an admin added taking precedence; the moved port gets its
-conduit in the section that names it, or in a new one. A port left on the
-other link is not an error, it just stays on the host path; the service says
-which ports and where in the log at boot. An even split is left alone: nothing
-on the board says which link works.
+`fw_mask` in uci still override it if a board needs that. First boot changes
+nothing about the wiring either: a board table that splits the DSA ports
+across both CPU links (the Redmi AX5400, the Cudy P5, the CMCC PZ-L8 and the
+CR880x put `lan1`-`lan3` on `eth1` and `wan` on `eth0`) is kept exactly as
+`board.d` and netifd made it, and both links carry firmware traffic -
+`fw_mask` derives `0x3`, and `tag_8021q` hands a port's VLAN to its own CPU
+port alone, so neither link floods into the other.
 
-A board of these three set up on the `dsa` topology before 21 September 2026
-kept the split - the first-boot script read only `/etc/config/network` then,
-found no conduit there and moved nothing, so `wan` stayed on `eth0` and off
-the firmware. First boot does not run again on its own; the fix by hand is
-what the script now writes (if `uci show network | grep "name='wan'"` already
-finds a `config device` for `wan` - a MAC override, say - set the conduit in
-that one instead; two sections for one device do not mix):
+Builds before 10 November 2026 consolidated such a split on first boot: every
+port was moved onto the link carrying most of them (`wan` to `eth1` on these
+four boards), because the plane armed one conduit only and a port on the other
+link stayed on the host path. A board first set up by one of those builds
+still has that move in `/etc/config/network`, and first boot does not run
+again on its own - undo it by hand to get the split back:
 
 ```
-uci add network device
-uci set network.@device[-1].name='wan'
-uci set network.@device[-1].conduit='eth1'
+uci show network | grep "name='wan'"       # the section the script wrote
+uci -q delete network.@device[1].conduit   # board.d's eth0 applies again
 uci commit network
 reboot
 ```
@@ -507,12 +525,31 @@ topology alone.
 | `fabric` | `qca8337` | which switch the trunk goes through: `qca8337` (unbind `qca8k`, re-arm with `qca8337-nss`), `rtl8367s` (an RTL8367S-VB: unbind `rtl8365mb`, re-arm with `rtl8367s-nss` - the Archer AX55 v1), or `none` on a board with no switch, or one whose DSA driver stays bound (EX511 v2): skips the unbind and the fabric module. |
 | `switch_dev` | `90000.mdio-1:11` | the switch's MDIO device, unbound from its DSA driver before the re-arm. `90000.mdio-1:18` on the I-O DATA WN-DAX3000GR and the Elecom WRC-X3000GS2 / GST2; `90000.mdio-1:1d` (address 29) for the RTL8367S on the Archer AX55 v1. |
 | `switch_args` | *(empty)* | further fabric module parameters, passed verbatim. `qca8337-nss`: `cpu_port=`, `ports=`, `wake_phys=`, `bus_via=`; `rtl8367s-nss`: `trunk_port=`, `ports=`, `phys=`, `force_val=`, `pvids=` (its defaults are the AX55 wiring). |
-| `meminfo` | *(empty; GMAC1's rings in SDRAM on the Redmi AX5400, MR5500, MX5500, and AX6000)* | where the firmware keeps the GMAC descriptor rings, written to `qca-nss-drv`'s `meminfo_user_config` before the core boots, e.g. `<0, gmac_tx_desc_1, SDRAM>, <0, gmac_rx_desc_1, SDRAM>`. With GMAC1's rings in the default `UTCM_SHARED` the port never starts on those four boards (`rs=0 ts=0`, `rx_fw=0`) - worth trying on any other board with that symptom. `default` keeps the firmware's placement on them. `grep gmac /sys/kernel/debug/qca-nss-drv/meminfo/core0` shows where they ended up. |
+| `meminfo` | *(empty; GMAC1's rings in SDRAM on the Redmi AX5400, MR5500, MX5500, AX6000, and H3C Magic NX54)* | where the firmware keeps the GMAC descriptor rings, written to `qca-nss-drv`'s `meminfo_user_config` before the core boots, e.g. `<0, gmac_tx_desc_1, SDRAM>, <0, gmac_rx_desc_1, SDRAM>`. With GMAC1's rings in the default `UTCM_SHARED` the port never starts on those five boards (`rs=0 ts=0`, `rx_fw=0`) - worth trying on any other board with that symptom. `default` keeps the firmware's placement on them. `grep gmac /sys/kernel/debug/qca-nss-drv/meminfo/core0` shows where they ended up. |
 | `fw_csum` | *(unset = off)* | `1` lets the firmware compute TX checksums and segment TSO frames for traffic the router itself sends (the glue's `fw_csum` parameter); forwarded traffic never uses either. The service writes it before any port starts, so it applies from boot. Set by hand afterwards (`/sys/module/qca_dwmac_nss/parameters/fw_csum`) it needs the GMAC's netdev taken down and up, and that closes every DSA port on it until each is brought up again. DSA ports keep the offload features they copied from the conduit when they were created, so through a switch port only the checksum is offloaded (seen on an Archer AX55: the conduit shows TSO, its ports do not); TSO needs a GMAC that is a netdev of its own. |
 | `fw_logbuf` | `256` | firmware log ring size, read at `/sys/kernel/debug/qca-nss-drv/logs` |
 
 There is no runtime detach. `/etc/init.d/nss stop` prints how to disable the
 plane across reboots; returning to the host path needs a reboot.
+
+### CPU clock
+
+The A53 cores run at 1008 MHz when idle and go up to 1296 MHz under load
+(`schedutil`; patches 0973-0975). 1296 MHz is above the rated 1008 MHz, at the
+same fixed 1.1 V, since these boards have no CPU regulator. Most chips hold it,
+but one IPQ5000 (a Redmi AX3000) corrupted memory and reset under load at
+1296 MHz and ran clean at 1008 MHz (kuncy7/openwrt-nss-edma#78). Traffic the
+NSS firmware forwards does not need the higher clock; it helps what the host
+itself does, such as WireGuard. To keep the cores at 1008 MHz:
+
+```
+uci set pbuf.opt.scaling_max_freq='1008000'
+uci commit pbuf
+reboot
+```
+
+`qca-nss-pbuf` writes it to every core at boot (late in the boot, `START=95`),
+and `cat /sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq` shows it.
 
 ### Checking that it works
 
@@ -622,7 +659,9 @@ The board side is small. The parts, in order of effort:
    MX6200, Xunison D50, CMCC MR3000D-CI (wired plane and 5 GHz offload on
    the table entry as written), Redmi AX5400 (both CPU links: LAN on
    `eth1.1`, WAN on `eth0.2`, Wi-Fi on the host), TP-Link EX511 v2
-   (RTL8367D, both radios, see the switch note below), Xiaomi AX6000.
+   (RTL8367D, both radios, see the switch note below), Xiaomi AX6000,
+   Netgear WAX630E (no switch, both GMACs in `br-lan`, all three radios
+   offloaded, see its notes below).
    Straight from the DTS, untested on the trunk: Linksys MX5500 and MR5500,
    Zyxel SCR50AXE, CMCC PZ-L8, I-O DATA WN-DAX3000GR, Elecom WRC-X3000GS2 /
    GST2, Yuncore AX830 and AX850, AVM FRITZ!Box 4050. On those the settings apply themselves on
@@ -850,7 +889,15 @@ traffic within seconds, see the fixes below; measured with `wpad-mesh-mbedtls`
 managing the peerings, open and SAE). Not tried: more than one hop, 2.4 GHz,
 a peer that is not offloaded, a firmware crash with an open mesh run by the
 kernel's own peering (`wpad-basic-mbedtls`). The `256m` images are built without
-it: the mesh costs memory those boards do not have to spare.
+it: the mesh costs memory those boards do not have to spare. A mesh interface
+left in `/etc/config/wireless` on a `256m` image, kept from a `std` image for
+example, takes its whole radio down with it: the driver refuses the mesh
+interface and the access points on that radio do not come up either (seen on a
+GL-B3000 limited to 256 MB, firmware 12.2). Remove the mesh interface or set
+`option disabled '1'` on it. A mesh on a `256m` image needs the Wi-Fi on the
+host path (`nss.general.wifi_offload='0'`); ADCDS's Xiaomi AX3000T build
+measured about 20 MB less free memory that way under sustained Wi-Fi traffic.
+Not tried here.
 
 An open mesh works with the image as it is. An encrypted mesh (SAE) needs the
 full mesh-capable `wpad`, which the image does not carry - it keeps
@@ -858,10 +905,16 @@ full mesh-capable `wpad`, which the image does not carry - it keeps
 
 ```sh
 apk update
-apk add wpad-mesh-mbedtls    # replaces wpad-basic-mbedtls
+apk del wpad-basic-mbedtls && apk add wpad-mesh-mbedtls
+/etc/init.d/wpad restart && wifi
 ```
 
-A sysupgrade puts `wpad-basic-mbedtls` back: install it again afterwards (on
+The two packages conflict, so `apk add` alone refuses; remove the one, add the
+other. The running `hostapd` and `wpa_supplicant` are still the old binary
+until the service is restarted (or the board rebooted): `wifi` by itself hands
+the old supplicant a mesh it cannot parse and the whole radio stays down.
+
+A sysupgrade puts `wpad-basic-mbedtls` back: do the above again afterwards (on
 a satellite without its own WAN, copy the package over and use
 `apk add --allow-untrusted --no-network <file>`).
 
@@ -896,8 +949,9 @@ What it needed, in this branch:
 
 ## 256 MB boards
 
-Three IPQ5018 boards on this branch have 256 MB - the TP-Link EX511 v2
-(IPQ5018 + QCN6122), the Cudy P5 and the Xiaomi Mi Router AX3000T v2 - and the rest
+Four IPQ5018 boards on this branch have 256 MB - the TP-Link EX511 v2
+(IPQ5018 + QCN6122), the Cudy P5, the Xiaomi Mi Router AX3000T v2 and the
+Ruijie RG-MA3063 (IPQ5018 + QCN6122 + QCA8337) - and the rest
 512 MB. The defaults
 tuned for 512 MB do not fit in 256: on the EX511 the first flashed build
 OOM-killed the AP daemon on a single iperf3 run. What it needed, all in the branch and measured on the board
@@ -956,17 +1010,56 @@ OOM-killed the AP daemon on a single iperf3 run. What it needed, all in the bran
     the `qca-nss-drv` package of the feed, so a board has to be named in
     both places - the EX511 v2 and the Cudy P5 are, in both; the AX3000T v2
     is named here and in kuncy7/nss-packages#4, which is not merged yet. The
-    firmware version
-  (`NSS_FIRMWARE_VERSION_12_2`) is the feed's default on ipq50xx; the release
-  images carry 12.5 since 15 October 2026, which has not been run on a 256 MB
-  board yet. `qcom,ath11k-fw-memory-mode = <2>` on both radios is in
-  the DTS.
+    firmware version of this group is 12.2-156
+  (`NSS_FIRMWARE_VERSION_12_2` in `256m.config`; the feed's default is 12.5):
+  12.5-210 ran on 256 MB boards from 15 October 2026 to `ipq50xx-2026.11.11`
+  and keeps payload buffers with some 802.11ac clients, see *Firmware*.
+  `qcom,ath11k-fw-memory-mode = <2>` on both radios is in the DTS.
 
 Result: ~850 / ~740 Mbit/s on 5 GHz with 4 streams (stock: 843 / 906),
 0 OOM, 20 MB available after the run against 3 MB before. Not done:
 `vm.min_free_kbytes` (OpenWrt's init sets 16384 on anything over 64 MB,
 stock uses 2048), and ~50 MB of used memory that no `/proc/meminfo` counter
 names on this kernel config - attributing it needs `CONFIG_PAGE_OWNER`.
+
+### Ruijie RG-MA3063 notes
+
+The RG-MA3063 ships in several NAND and hardware revisions; only the
+Macronix NAND has been tried. Back up ART and both rootfs slots over
+serial before flashing, and keep the second slot on stock firmware as a
+fallback - the stock `bootipq` loader picks the slot from BOOTCONFIG.
+Sysupgrade always rewrites the OpenWrt `rootfs` partition in place.
+
+### Netgear WAX630E notes
+
+An access point: IPQ5018, IPQ5018 2.4 GHz + QCN6122 6 GHz on the Q6, a
+QCN9024 for 5 GHz on PCIe, 1 GB RAM, 256 MB SPI-NAND, no switch. `lan1`
+is a QCA8081 on GMAC1 (2.5G, PoE in), `lan2` the GE PHY on GMAC0; both
+are in `br-lan` with DHCP on `lan`, and the table entry's `keep_bridge`
+leaves them there. Both GMACs are armed (`fw_mask=0x3`), and all three
+radios register with the firmware, the QCN9024 on PCIe included. Bridged
+Wi-Fi <-> `lan1` flows are accelerated by ECM without `bridge-mgr`.
+Measured with iperf3 `-P 8` between a phone and a wired host behind a
+1 GbE switch: 6 GHz and 5 GHz (both 160 MHz) plateau at 920-960 Mbit/s
+each way, the 1 GbE ceiling, with short dips (open) and the CPU
+92-98 % idle (6 GHz without NSS: ~250 down, 350-400 up, both cores
+saturated). `lan1` also links at 2.5G on the firmware path: with a
+wired host behind it, forwarded 5 GHz Wi-Fi <-> `lan1` reached
+2.1 Gbit/s down to a 3-stream client and 1.5-1.77 Gbit/s down to a
+2-stream phone, the CPU at least 62 % idle and `lan1` 99.7 % / 100 %
+offloaded. Unlike the AX6000 with the same QCA8081 on GMAC1, `lan1`
+runs with its rings in the default `UTCM_SHARED`; those runs used it.
+
+The stock `bootipq` loader boots the active slot (`rootfs`, chosen by
+BOOTCONFIG) and increments `boot_count` before every boot from flash;
+once its first digit is above 3 it switches slots, so the board's
+`bootcount` script resets the counter on every boot from flash. Install
+OpenWrt from the stock web UI with `ui-factory.tar` (Management ->
+Maintenance -> Upgrade -> Firmware Upgrade, Local) or over serial (TFTP
+the initramfs, then `sysupgrade`). The stock upgrade carries its own
+configuration over, so after the web UI install hold the reset button
+for about 10 s once OpenWrt has booted. Either way the other slot keeps
+stock firmware; `fw_setenv boot_count 4` and a reboot go back to it.
 
 ## Fixes worth knowing about
 

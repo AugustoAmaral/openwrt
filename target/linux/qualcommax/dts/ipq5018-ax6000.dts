@@ -27,7 +27,14 @@
 		 * ubi.mtd=rootfs_1 root=mtd:ubi_rootfs rootfstype=squashfs rootwait uart_en=1
 		 * so we need to override and set ubi.mtd=rootfs
 		 */
-		bootargs-append = " ubi.mtd=rootfs root=/dev/ubiblock0_0 coherent_pool=2M";
+		/*
+		 * coherent_pool sizes the three atomic DMA pools (kernel, DMA,
+		 * DMA32). 2M was needed while the MPD firmware loader took its
+		 * segment buffers from the atomic pool. That loader is no longer
+		 * in the kernel (multiPD is done in ath11k), so 512K is enough,
+		 * as on the CR880x boards.
+		 */
+		bootargs-append = " ubi.mtd=rootfs root=/dev/ubiblock0_0 coherent_pool=512K";
 		stdout-path = "serial0:115200n8";
 	};
 
@@ -520,7 +527,7 @@
 			compatible = "pci17cb,1104";
 			reg = <0x00010000 0 0 0 0>;
 
-			qcom,ath11k-calibration-variant = "Xiaomi-AX6000";
+			qcom,calibration-variant = "Xiaomi-AX6000";
 		};
 	};
 };
@@ -552,7 +559,7 @@
 	status = "okay";
 
 	qcom,rproc = <&q6v5_wcss>;
-	qcom,ath11k-calibration-variant = "Xiaomi-AX6000";
+	qcom,calibration-variant = "Xiaomi-AX6000";
 	/* no QCN6122 on this board: the multi-PD WLAN.HK.2.7.0.1 image with only user PD 1 started, see ipq5018-qcn6122.dtsi */
 	qcom,ath11k-fw-memory-mode = <1>;
 };

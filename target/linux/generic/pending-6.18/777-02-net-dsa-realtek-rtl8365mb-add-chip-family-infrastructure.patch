@@ -1,8 +1,8 @@
-From 2dac0d9e42698ab66dcf1a7747a8e10d8da4e63c Mon Sep 17 00:00:00 2001
+From 4a500fd6a6d13652fc89f0121afe77b3e03db205 Mon Sep 17 00:00:00 2001
 From: Mieczyslaw Nalewaj <namiltd@yahoo.com>
 Date: Sat, 13 Jun 2026 00:19:37 +0200
-Subject: [PATCH net-next v6 2/9] net: dsa: realtek: rtl8365mb: add chip family
- infrastructure
+Subject: [PATCH net-next v7 02/10] net: dsa: realtek: rtl8365mb: add chip
+ family infrastructure
 
 Add enum rtl8365mb_family and a family member to struct
 rtl8365mb_chip_info, together with rtl8365mb_get_family() declared in a
@@ -17,15 +17,13 @@ No functional change.
 
 Signed-off-by: Mieczyslaw Nalewaj <namiltd@yahoo.com>
 Reviewed-by: Linus Walleij <linusw@kernel.org>
+Reviewed-by: Luiz Angelo Daros de Luca <luizluca@gmail.com>
 ---
  drivers/net/dsa/realtek/rtl8365mb.h      | 14 ++++++++++++++
  drivers/net/dsa/realtek/rtl8365mb_main.c | 14 ++++++++++++++
  2 files changed, 28 insertions(+)
  create mode 100644 drivers/net/dsa/realtek/rtl8365mb.h
 
-diff --git a/drivers/net/dsa/realtek/rtl8365mb.h b/drivers/net/dsa/realtek/rtl8365mb.h
-new file mode 100644
-index 0000000..315de4c
 --- /dev/null
 +++ b/drivers/net/dsa/realtek/rtl8365mb.h
 @@ -0,0 +1,14 @@
@@ -43,8 +41,6 @@ index 0000000..315de4c
 +enum rtl8365mb_family rtl8365mb_get_family(struct realtek_priv *priv);
 +
 +#endif /* _RTL8365MB_H */
-diff --git a/drivers/net/dsa/realtek/rtl8365mb_main.c b/drivers/net/dsa/realtek/rtl8365mb_main.c
-index da06f95..840db5a 100644
 --- a/drivers/net/dsa/realtek/rtl8365mb_main.c
 +++ b/drivers/net/dsa/realtek/rtl8365mb_main.c
 @@ -110,6 +110,7 @@
@@ -55,7 +51,7 @@ index da06f95..840db5a 100644
  
  /* Family-specific data and limits */
  #define RTL8365MB_PHYADDRMAX		7
-@@ -707,6 +708,7 @@ struct rtl8365mb_extint {
+@@ -695,6 +696,7 @@ struct rtl8365mb_extint {
   * @name: human-readable chip name
   * @chip_id: chip identifier
   * @chip_ver: chip silicon revision
@@ -63,7 +59,7 @@ index da06f95..840db5a 100644
   * @extints: available external interfaces
   * @jam_table: chip-specific initialization jam table
   * @jam_size: size of the chip's jam table
-@@ -719,6 +721,7 @@ struct rtl8365mb_chip_info {
+@@ -707,6 +709,7 @@ struct rtl8365mb_chip_info {
  	const char *name;
  	u32 chip_id;
  	u32 chip_ver;
@@ -71,7 +67,7 @@ index da06f95..840db5a 100644
  	const struct rtl8365mb_extint extints[RTL8365MB_MAX_NUM_EXTINTS];
  	const struct rtl8365mb_jam_tbl_entry *jam_table;
  	size_t jam_size;
-@@ -731,6 +734,7 @@ static const struct rtl8365mb_chip_info rtl8365mb_chip_infos[] = {
+@@ -719,6 +722,7 @@ static const struct rtl8365mb_chip_info
  		.name = "RTL8365MB-VC",
  		.chip_id = 0x6367,
  		.chip_ver = 0x0040,
@@ -79,7 +75,7 @@ index da06f95..840db5a 100644
  		.extints = {
  			{ 6, 1, PHY_INTF(MII) | PHY_INTF(TMII) |
  				PHY_INTF(RMII) | PHY_INTF(RGMII) },
-@@ -742,6 +746,7 @@ static const struct rtl8365mb_chip_info rtl8365mb_chip_infos[] = {
+@@ -730,6 +734,7 @@ static const struct rtl8365mb_chip_info
  		.name = "RTL8367S",
  		.chip_id = 0x6367,
  		.chip_ver = 0x00A0,
@@ -87,7 +83,7 @@ index da06f95..840db5a 100644
  		.extints = {
  			{ 6, 1, PHY_INTF(SGMII) | PHY_INTF(HSGMII) },
  			{ 7, 2, PHY_INTF(MII) | PHY_INTF(TMII) |
-@@ -754,6 +759,7 @@ static const struct rtl8365mb_chip_info rtl8365mb_chip_infos[] = {
+@@ -742,6 +747,7 @@ static const struct rtl8365mb_chip_info
  		.name = "RTL8367SB",
  		.chip_id = 0x6367,
  		.chip_ver = 0x0010,
@@ -95,7 +91,7 @@ index da06f95..840db5a 100644
  		.extints = {
  			{ 6, 1, PHY_INTF(MII) | PHY_INTF(TMII) |
  				PHY_INTF(RMII) | PHY_INTF(RGMII) |
-@@ -768,6 +774,7 @@ static const struct rtl8365mb_chip_info rtl8365mb_chip_infos[] = {
+@@ -756,6 +762,7 @@ static const struct rtl8365mb_chip_info
  		.name = "RTL8367RB-VB",
  		.chip_id = 0x6367,
  		.chip_ver = 0x0020,
@@ -103,7 +99,7 @@ index da06f95..840db5a 100644
  		.extints = {
  			{ 6, 1, PHY_INTF(MII) | PHY_INTF(TMII) |
  				PHY_INTF(RMII) | PHY_INTF(RGMII) },
-@@ -874,6 +881,13 @@ struct rtl8365mb {
+@@ -871,6 +878,13 @@ struct rtl8365mb {
  
  #define pcs_to_rtl8365mb(_pcs) container_of((_pcs), struct rtl8365mb, pcs)
  
@@ -117,6 +113,3 @@ index da06f95..840db5a 100644
  static int rtl8365mb_phy_poll_busy(struct realtek_priv *priv)
  {
  	u32 val;
--- 
-2.53.0
-

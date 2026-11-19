@@ -1,0 +1,44 @@
+From: Stanislaw Pal <kuncy7@gmail.com>
+Date: Thu, 29 Oct 2026 22:00:00 +0100
+Subject: [PATCH] net: dsa: realtek: rtl8365mb: number the bridges on family D
+ too
+
+"make L2/LUT access work on family D" stops advertising fdb_isolation
+and max_num_bridges on family D, which has no EFID. Without
+max_num_bridges the DSA core gives every bridge number 0, and under the
+rtl8365mb-8021q tagger a bridge's number picks its tag_8021q VID:
+dsa_tag_8021q_bridge_vid(0) is 3072, the standalone VID of port 0. On
+the IPQ5018 boards that port is wan, so every bridge would share its
+VLAN with wan, and two bridges would share one with each other.
+
+Keep fdb_isolation off on family D, as that series wants, but keep
+max_num_bridges so that the bridges are numbered. Nothing on family D
+uses the number for the FDB: port_set_efid() is a no-op there.
+
+Signed-off-by: Stanislaw Pal <kuncy7@gmail.com>
+Assisted-by: Claude:claude-opus-5-5
+---
+--- a/drivers/net/dsa/realtek/rtl8365mb_main.c
++++ b/drivers/net/dsa/realtek/rtl8365mb_main.c
+@@ -4758,13 +4758,15 @@ static int rtl8365mb_setup(struct dsa_sw
+ 		goto out_teardown_irq;
+ 
+ 	ds->assisted_learning_on_cpu_port = true;
+-	if (rtl8365mb_get_family(priv) != RTL8365MB_FAMILY_D) {
++	if (rtl8365mb_get_family(priv) != RTL8365MB_FAMILY_D)
+ 		ds->fdb_isolation = true;
+-		/* The EFID is 3 bits, but EFID 0 is reserved for standalone ports.
+-		 * The same 7 is what tag_8021q can enumerate (DSA_TAG_8021Q_MAX_NUM_BRIDGES).
+-		 */
+-		ds->max_num_bridges = FIELD_MAX(RTL8365MB_EFID_MASK);
+-	}
++	/* The EFID is 3 bits, but EFID 0 is reserved for standalone ports.
++	 * The same 7 is what tag_8021q can enumerate (DSA_TAG_8021Q_MAX_NUM_BRIDGES).
++	 * Family D has no EFID, but the bridges still need their numbers:
++	 * under the 8021q tagger a bridge's number picks its tag_8021q VID,
++	 * and bridge number 0 gives the VID of standalone port 0.
++	 */
++	ds->max_num_bridges = FIELD_MAX(RTL8365MB_EFID_MASK);
+ 
+ 	ds->configure_vlan_while_not_filtering = true;
+ 

@@ -15,7 +15,7 @@ msgstr "%s IPv4 / %s IPv6 / %s multicast"
 
 #: package/nss/luci-app-nss/htdocs/luci-static/resources/view/nss/status.js:131
 msgid "%s pkts/s (NSS→host)"
-msgstr "%s pakietów/s (NSS→host)"
+msgstr "%s pakiety(-ów)/s (NSS→host)"
 
 #: package/nss/luci-app-nss/htdocs/luci-static/resources/view/nss/status.js:136
 msgid "Bridge offload (bridge-mgr)"
@@ -99,6 +99,10 @@ msgstr "Akceleracja sprzętowa NSS aktywna (wifili)"
 msgid "NSS offload active (wifili, 802.11s mesh offloaded)"
 msgstr "Akceleracja sprzętowa NSS aktywna (wifili, sieć mesh 802.11s obsługiwana przez akcelerację)"
 
+#: package/nss/luci-app-nss/htdocs/luci-static/resources/view/nss/status.js:63
+msgid "NSS offload active (wifili; 802.11s mesh configured, not offloaded)"
+msgstr "Akceleracja NSS aktywna (wifili; sieć mesh 802.11s skonfigurowana, bez akceleracji)"
+
 #: package/nss/luci-app-nss/htdocs/luci-static/resources/view/status/include/16_nss_offload.js:19
 msgid "NSS temperature"
 msgstr "Temperatura NSS"
@@ -135,12 +139,30 @@ msgstr "Temperatura pozostałych układów SoC"
 msgid "PPPoE manager"
 msgstr "Menedżer PPPoE"
 
+#: package/nss/luci-app-nss/htdocs/luci-static/resources/view/nss/status.js:131
+msgid ""
+"Packets through the firmware's Wi-Fi data path since boot, per radio. \"RX "
+"(REO)\" is every frame the radio received; \"RX delivered\" counts only "
+"frames for an AP or STA interface, so frames of an offloaded 802.11s mesh "
+"link show up in the first column only."
+msgstr "Pakiety przez ścieżkę danych Wi-Fi oprogramowania układowego od uruchomienia, dla każdego radia. „RX (REO)” to wszystkie ramki odebrane przez radio; „RX dostarczone” liczy tylko ramki dla interfejsu AP lub STA, więc ramki akcelerowanego łącza mesh 802.11s widać tylko w pierwszej kolumnie."
+
 #: package/nss/luci-app-nss/htdocs/luci-static/resources/view/nss/status.js:73
 #: package/nss/luci-app-nss/htdocs/luci-static/resources/view/nss/status.js:98
 #: package/nss/luci-app-nss/htdocs/luci-static/resources/view/nss/status.js:118
 #: package/nss/luci-app-nss/htdocs/luci-static/resources/view/nss/status.js:153
 msgid "Port"
 msgstr "Port"
+
+#: package/nss/luci-app-nss/htdocs/luci-static/resources/view/nss/status.js:116
+#: package/nss/luci-app-nss/htdocs/luci-static/resources/view/nss/status.js:127
+msgid "RX (REO)"
+msgstr "RX (REO)"
+
+#: package/nss/luci-app-nss/htdocs/luci-static/resources/view/nss/status.js:117
+#: package/nss/luci-app-nss/htdocs/luci-static/resources/view/nss/status.js:128
+msgid "RX delivered"
+msgstr "RX dostarczone"
 
 #: package/nss/luci-app-nss/htdocs/luci-static/resources/view/nss/status.js:78
 #: package/nss/luci-app-nss/htdocs/luci-static/resources/view/nss/status.js:158
@@ -156,6 +178,11 @@ msgstr "Pakiety RX"
 #: package/nss/luci-app-nss/htdocs/luci-static/resources/view/nss/status.js:159
 msgid "RX to host"
 msgstr "RX — do hosta"
+
+#: package/nss/luci-app-nss/htdocs/luci-static/resources/view/nss/status.js:114
+#: package/nss/luci-app-nss/htdocs/luci-static/resources/view/nss/status.js:125
+msgid "Radio"
+msgstr "Radio"
 
 #: package/nss/luci-app-nss/htdocs/luci-static/resources/view/nss/status.js:139
 msgid "SQM shaper"
@@ -185,6 +212,11 @@ msgstr "Pakiety TX obsłużone przez akcelerację sprzętową"
 msgid "TX packets"
 msgstr "Pakiety TX"
 
+#: package/nss/luci-app-nss/htdocs/luci-static/resources/view/nss/status.js:115
+#: package/nss/luci-app-nss/htdocs/luci-static/resources/view/nss/status.js:126
+msgid "TX sent"
+msgstr "TX wysłane"
+
 #: package/nss/luci-app-nss/htdocs/luci-static/resources/view/nss/status.js:77
 #: package/nss/luci-app-nss/htdocs/luci-static/resources/view/nss/status.js:157
 msgid "TX via host"
@@ -199,6 +231,10 @@ msgstr "Ruch obsługiwany przez akcelerację sprzętową jest już uwzględniony
 #: package/nss/luci-app-nss/htdocs/luci-static/resources/view/nss/status.js:138
 msgid "Wi-Fi data path"
 msgstr "Ścieżka danych Wi-Fi"
+
+#: package/nss/luci-app-nss/htdocs/luci-static/resources/view/nss/status.js:122
+msgid "Wi-Fi radios on the firmware"
+msgstr "Radia Wi-Fi w oprogramowaniu układowym"
 
 #: package/nss/luci-app-nss/htdocs/luci-static/resources/view/status/include/16_nss_offload.js:20
 msgid "Wi-Fi temperature"
@@ -219,7 +255,7 @@ msgstr "nieaktywne"
 
 #: package/nss/luci-app-nss/htdocs/luci-static/resources/view/nss/status.js:146
 msgid "egress %s pkts / ingress %s pkts — %s marking rules"
-msgstr "wyjście: %s pakietów / wejście: %s pakietów — reguły oznaczania: %s"
+msgstr "wyjście: %s pakiety(-ów) / wejście: %s pakiety(-ów) — reguły oznaczania: %s"
 
 #: package/nss/luci-app-nss/htdocs/luci-static/resources/view/nss/status.js:66
 msgid "host mode"
@@ -270,6 +306,10 @@ msgstr "nsstbl na %s"
 #: package/nss/luci-app-nss/htdocs/luci-static/resources/view/nss/status.js:141
 msgid "nsstbl on %s (a lane on the switch conduit %s)"
 msgstr "nsstbl na %s (ścieżka w kanale przełącznika %s)"
+
+#: package/nss/luci-app-nss/htdocs/luci-static/resources/view/nss/status.js:145
+msgid "off (no queue enabled in /etc/config/sqm)"
+msgstr "wyłączone (brak włączonej kolejki w /etc/config/sqm)"
 
 #: package/nss/luci-app-nss/htdocs/luci-static/resources/view/nss/status.js:99
 msgid "up"

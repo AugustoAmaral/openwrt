@@ -23,6 +23,8 @@
 #          (~1000/s against ~15/s for the trunk's own interrupt)
 #   CPU1   nss_queue1 and the copy engines of both radios
 #
+# With a modem the N2H delivery moves to CPU1 instead (see the end).
+#
 # Firmware RPS has to be on for queue1 to carry anything at all: it is
 # the firmware that hashes host-terminated flows across the N2H queues,
 # and with it off every packet arrives on queue0 no matter what the
@@ -92,6 +94,47 @@ if poll_until 5 have_ce; then
 	pin ce3 1
 else
 	log "no Wi-Fi copy engines to place (ath11k not loaded)"
+fi
+
+# A modem's receive interrupt (MHI on PCIe, xHCI for USB) stays on CPU0,
+# where it is that core's heaviest load. Firmware RPS hashes flows that
+# end on the host, and the modem path's raw-IP returns are not hashed at
+# all: on a D50 nss_queue0 took 4.9M interrupts against 268k on
+# nss_queue1, so every return lands on CPU0 next to the modem. pri_map
+# sends all four priorities to core 1, which moves the whole N2H delivery
+# to CPU1. Busiest core on the D50 (MBIM modem, ~170 Mbit/s): ~19% ->
+# ~16.5%, same speeds, no drops. pri_map resets with the NSS core, and
+# this runs after every bring-up.
+#
+# The modem is found by its driver, not by an "mhi" interrupt: ath11k on
+# PCIe (QCN9074) runs over MHI too, but binds ath11k_pci. Quectel's
+# vendor pcie_mhi registers as mhi or mhi_q depending on the version,
+# and qmi_wwan_q is its vendor USB driver. The check runs once per
+# bring-up: a USB modem plugged in after it is not seen until the next.
+have_modem() {
+	local d
+	for d in /sys/bus/pci/drivers/mhi-pci-generic/0* \
+		/sys/bus/pci/drivers/mhi_q/0* \
+		/sys/bus/pci/drivers/mhi/0* \
+		/sys/bus/usb/drivers/qmi_wwan/*:* \
+		/sys/bus/usb/drivers/qmi_wwan_q/*:* \
+		/sys/bus/usb/drivers/cdc_mbim/*:* \
+		/sys/bus/usb/drivers/option/*:*; do
+		[ -e "$d" ] && return 0
+	done
+	return 1
+}
+
+if [ "$(ncpus)" = 2 ] && have_modem; then
+	n2h=1
+	for p in 0 1 2 3; do
+		echo "$p 1" > /proc/sys/dev/nss/rps/pri_map 2>/dev/null || n2h=0
+	done
+	if [ "$n2h" = 1 ]; then
+		PINNED="$PINNED n2h->1"
+	else
+		log "modem present: cannot move the N2H delivery to cpu 1"
+	fi
 fi
 
 log "placed:${PINNED:- nothing}"
