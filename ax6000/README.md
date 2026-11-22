@@ -7,11 +7,11 @@ Maintained by Augusto Amaral.
 ## What this branch is
 
 - **Base:** OpenWrt `main` (kernel 6.18) plus the IPQ5018 NSS layer from kuncy7's `openwrt-nss-edma`, branch
-  `c3po-tag-8021q`. This branch (`ax6000-2026-10`) tracks that tree by merge; it is at commit `9e82f2b3a2`
-  (2026-10-18; OpenWrt `main` merged on 2026-10-18; kernel 6.18.55).
+  `c3po-tag-8021q`. This branch (`ax6000-2026-10`) tracks that tree by merge; it is at commit `092adebb06`
+  (2026-11-20; OpenWrt `main` merged on 2026-11-18; kernel 6.18.60).
 - **Feed:** `nss-packages` (kuncy7), branch `ipq50xx-rebase`, the companion feed for `c3po-tag-8021q`. Pin it to a
-  commit before a release build. The image in flash uses `a8e0e5c` (branch head on 2026-10-19) and NSS firmware
-  12.5-210, the version kuncy7's release images carry since 2026-10-15.
+  commit before a release build. The image in flash uses `be1d4f5` (branch head on 2026-11-22) and NSS firmware
+  12.5-210; since 2026-11-20 the image carries 12.2-156 as well and `nss.general.firmware` picks the line at boot.
 - **Previous branch:** `ax6000` (kuncy7 `87cfd3190e`, kernel 6.18.52, firmware 12.2) is kept as an archive. kuncy7
   rewrote `c3po-tag-8021q` on 2026-10-10 (his backup: `c3po-tag-8021q-pre-sync-20261010`), so the old branch cannot
   be merged forward; this one was started fresh from his tree at `41998763c9` (2026-10-17), the local commits were
@@ -38,11 +38,11 @@ matching kernel module) install from the official OpenWrt repository normally.
 
 | Area | Status | Measured |
 |---|---|---|
-| Cable → PPPoE, accelerated | ✅ | 722.8 / 728.4 Mbit/s (RAM) and 729.2 Mbit/s (flash) on this branch, 2026-10-19; 711–729 Mbit/s over 15 runs on the previous branch; see `docs/testing.md` |
-| Wi-Fi, 2.4 GHz, NSS offload | ✅ on the previous branch; up and serving clients on this one | offload confirmed active (firmware `if_num` present, frames counted in `wifili`); throughput not isolated per band |
-| Wi-Fi, 5 GHz, NSS offload | ✅ on the previous branch; up and serving clients on this one | offload confirmed active; one informal phone measurement: 578 Mbit/s down / 449 Mbit/s up |
+| Cable → PPPoE, accelerated | ✅ | 721.0 / 722.7 Mbit/s (RAM) and 721.6 / 728.1 Mbit/s (flash) on this branch, 2026-11-22; 722.8–729.2 on 2026-10-19; 711–729 Mbit/s over 15 runs on the previous branch; see `docs/testing.md` |
+| Wi-Fi, 2.4 GHz, NSS offload | ✅ | 2026-11-22, one 802.11ac 2x2 client, HT20 MCS15: 68 Mbit/s WAN → client with the router CPU 86 % idle |
+| Wi-Fi, 5 GHz, NSS offload | ✅ | 2026-11-22, same client, VHT80 MCS9: 635 Mbit/s WAN → client with the router CPU 90 % idle; 557 Mbit/s iperf3 to the router itself |
 | Trunk-bounce fix | ✅ upstream in kuncy7's tree since 2026-09-27 (PR #14); T2–T5 and both stress runs pass on this branch | see `docs/trunk-bounce-fix.md` and `docs/testing.md` |
-| This branch (`ax6000-2026-10`) | ✅ in flash since 2026-10-19 05:24 UTC (`r37761+8-9e82f2b3a2`) | RAM test with the full production config, then flash; see `docs/testing.md` § 2026-10-19 |
+| This branch (`ax6000-2026-10`) | ✅ in flash since 2026-11-22 07:46 UTC (`r37771+1126-e00f5fc4ab`, kuncy7 `092adebb06`); before that `r37761+8-9e82f2b3a2` from 2026-10-19 | RAM test with the full production config, then flash; see `docs/testing.md` § 2026-11-22 |
 | Everything else | — | see `docs/testing.md` § Not tested for the full list (IPv6 offload, long-term stability, cable unplug/replug under firmware control, SQM, other boards, …) |
 
 **NAND ECC:** this unit has the ESMT F50D1G41LB SPI-NAND (64-byte OOB), which the vendor bootloader runs with 4-bit

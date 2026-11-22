@@ -90,6 +90,30 @@ Reference on the old image the same night, same method: 717.0 Mbit/s cable → P
 | Flash | `sysupgrade -v`, config kept | ✅ same SSH host key; state diff against the old image limited to versions and addresses; 729.2 Mbit/s; T2 resumed |
 | Wi-Fi | flash | ✅ both radios up on the same channels; 2.4 GHz clients back within a minute, 5 GHz clients back over the following hour (as after earlier reboots) |
 
+## Run on `ax6000-2026-10` (kuncy7 `092adebb06` merged), 2026-11-22
+
+Image `r37771+1126-e00f5fc4ab` (kernel 6.18.60, NSS firmware 12.5-210 with 12.2-156 also in the image, feeds at their
+heads on 2026-11-22). Reference on the old image the same night, same method: 717.7 Mbit/s cable → PPPoE.
+
+| Test | Where it ran | Result |
+|---|---|---|
+| Boot + NAND ECC | RAM, factory config | ✅ the 13 fixed bootloader partitions read back with the same md5 as under the old image, `ecc_failures` 0 |
+| NSS | RAM | ✅ `NSS.FW.12.5-210-MP.R`, `nss core 0 booted`, both GMACs on the firmware data plane, `dsa`, `fw_mask 0x3` |
+| Run-time memory profile | RAM and flash | ✅ nothing set: `ath11k` and `ath11k_pci` log `memory profile 1G (from the RAM size, 427 MB), rx descriptor full`; `qca-nss-drv` logs `memory profile medium` |
+| Production config | RAM, `sysupgrade -r` of the production backup + service restarts | ✅ uci, `/etc/config` hashes, enabled and running services, interfaces, Wi-Fi, DNS/adblock, LuCI certificate and cron identical to production; only versions, the new PPPoE address/IPv6 prefix and two empty fw4 helper chains differ |
+| Load | RAM | ✅ 721.0 Mbit/s before the reload tests, 722.7 after; `accelerated_count` > 0 |
+| T2, T3, T4, T5 | RAM, over SSH | ✅ cable alive and DMA resumed after each |
+| Stress 5×1 s / 5×3 s | RAM | ✅ `noresume=0`, `notstarted=0` |
+| dmesg | RAM | ✅ no `Oops`/`BUG`/`WARNING` |
+| Flash | `sysupgrade -v`, config kept | ✅ same SSH host key; uci identical except `pbuf.opt.scaling_governor`, which the upgrade removes on purpose (kuncy7 #47); 721.6 and 728.1 Mbit/s; T2 resumed |
+| Wi-Fi 5 GHz (QCN9074) | RAM and flash, one 802.11ac 2x2 test client | ✅ associates in 6 s at VHT80 MCS9; 635 Mbit/s WAN → client, router CPU 90 % idle; same client and place on the old image: same signal at the AP (−55 dBm against −53) and same iperf3 rate to the router (560 against 583 Mbit/s) |
+| Wi-Fi 2.4 GHz (IPQ5018) | flash, same client | ✅ HT20 MCS15; 68 Mbit/s WAN → client |
+| `nss.general.mem_profile='512m'` | flash | ✅ both radios log `memory profile 512M (mem_profile parameter, 427 MB), rx descriptor without the rx header TLV` and take clients; MemAvailable 180 s after boot 119.4 MB against 79.9 MB; cable → PPPoE 725 Mbit/s; 5 GHz WAN → client 628 Mbit/s; iperf3 from the client to the router itself 462–475 Mbit/s over four runs against 557–583 on the default. In use on this unit since 2026-11-22 |
+
+Phones that were on the 5 GHz network took between 1.5 minutes and more than 15 minutes to come back after each
+reboot that night, on the old image as well as on the new one, so their return time says nothing about an image.
+A test client under your control does.
+
 ## Long-running / production checks
 
 **Long RAM test with production config, 2026-09-26 18:30–19:13 UTC** (this is the run
